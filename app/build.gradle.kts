@@ -60,6 +60,12 @@ dependencies {
 
     // Note: add hilt dependencies for work manager, only when required. Maybe in future.
 
+    // coroutine & flow support dependencies
+    implementation(libs.kotlinx.coroutines.core) // Latest version
+    implementation(libs.kotlinx.coroutines.android)
+    
+    // Material3 components
+    implementation(libs.androidx.material.icons.extended.android)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
