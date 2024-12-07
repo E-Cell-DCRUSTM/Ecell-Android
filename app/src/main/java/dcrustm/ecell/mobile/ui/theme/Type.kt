@@ -1,23 +1,14 @@
 package dcrustm.ecell.mobile.ui.theme
 
 import androidx.compose.material3.Typography
-import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
-import dcrustm.ecell.mobile.R
 
 val bodyFontFamily = FontFamily(
-    Font(
-        R.font.faustina,
-        FontWeight.Normal
-    )
+
 )
 
 val displayFontFamily = FontFamily(
-    Font(
-        R.font.inter,
-        FontWeight.Normal
-    )
+
 )
 
 // Default Material 3 typography values
