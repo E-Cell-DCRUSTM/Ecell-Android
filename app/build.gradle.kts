@@ -63,9 +63,12 @@ dependencies {
     // coroutine & flow support dependencies
     implementation(libs.kotlinx.coroutines.core) // Latest version
     implementation(libs.kotlinx.coroutines.android)
-    
+
     // Material3 components
     implementation(libs.androidx.material.icons.extended.android)
+
+    // Splash screen API
+    implementation(libs.androidx.core.splashscreen)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
