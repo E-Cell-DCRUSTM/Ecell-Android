@@ -52,23 +52,52 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
 
-    // Hilt DI dependencies
-    implementation(libs.hilt.android)
-    implementation(libs.androidx.hilt.navigation.compose)
-    ksp(libs.hilt.compiler)
-    ksp(libs.androidx.hilt.compiler)
+    // Google font provider
+    implementation("androidx.compose.ui:ui-text-google-fonts:1.7.8")
 
-    // Note: add hilt dependencies for work manager, only when required. Maybe in future.
+    // Coroutine dependencies
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.1")
 
-    // coroutine & flow support dependencies
-    implementation(libs.kotlinx.coroutines.core) // Latest version
-    implementation(libs.kotlinx.coroutines.android)
+    // Hilt dependencies
+    implementation("com.google.dagger:hilt-android:2.55")
+    implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
+    ksp("com.google.dagger:hilt-compiler:2.55")
+    ksp("androidx.hilt:hilt-compiler:1.2.0")
 
-    // Material3 components
-    implementation(libs.androidx.material.icons.extended.android)
+    // Work manager dependencies
+    implementation("androidx.work:work-runtime:2.10.0")
+    implementation("androidx.work:work-runtime-ktx:2.10.0")
+    implementation("androidx.hilt:hilt-work:1.2.0")
 
-    // Splash screen API
-    implementation(libs.androidx.core.splashscreen)
+    // Room dependencies
+    implementation("androidx.room:room-runtime:2.6.1")
+    implementation("androidx.room:room-ktx:2.6.1")
+    ksp("androidx.room:room-compiler:2.6.1")
+
+    //  Navigation compose library
+    implementation("androidx.navigation:navigation-compose:2.8.7")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
+
+    // Datepicker and time picker dialog 3rd party dependencies
+    implementation("com.maxkeppeler.sheets-compose-dialogs:core:1.3.0")
+    implementation("com.maxkeppeler.sheets-compose-dialogs:clock:1.3.0")
+    implementation("com.maxkeppeler.sheets-compose-dialogs:duration:1.3.0")
+    implementation("com.maxkeppeler.sheets-compose-dialogs:calendar:1.3.0")
+
+    // Accompanist Permissions
+    implementation("com.google.accompanist:accompanist-permissions:0.37.0")
+    implementation("com.google.accompanist:accompanist-navigation-animation:0.36.0")
+
+    // Material3 dependencies
+    implementation("androidx.compose.material:material-icons-extended-android:1.7.8")
+
+    // datastore preferences components
+    implementation("androidx.datastore:datastore-preferences:1.1.2")
+
+    // Kotlinx serialization library
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-core:1.8.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.0")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
