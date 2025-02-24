@@ -5,12 +5,22 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import dagger.hilt.android.AndroidEntryPoint
+import dcrustm.ecell.mobile.domain.usecase.CheckOnBoardingCompletedUseCase
+import dcrustm.ecell.mobile.domain.usecase.SetOnBoardingCompleteUseCase
 import dcrustm.ecell.mobile.ui.theme.AppTheme
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        @Inject
+        lateinit var checkOnBoardingCompletedUseCase: CheckOnBoardingCompletedUseCase
+
+        @Inject
+        lateinit var setOnBoardingCompletedUseCase: SetOnBoardingCompleteUseCase
+
         enableEdgeToEdge()
         setContent {
             AppTheme { }
