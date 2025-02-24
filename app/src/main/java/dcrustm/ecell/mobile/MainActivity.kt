@@ -12,14 +12,15 @@ import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
+    @Inject
+    lateinit var checkOnBoardingCompletedUseCase: CheckOnBoardingCompletedUseCase
+
+    @Inject
+    lateinit var setOnBoardingCompletedUseCase: SetOnBoardingCompleteUseCase
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        @Inject
-        lateinit var checkOnBoardingCompletedUseCase: CheckOnBoardingCompletedUseCase
-
-        @Inject
-        lateinit var setOnBoardingCompletedUseCase: SetOnBoardingCompleteUseCase
 
         enableEdgeToEdge()
         setContent {
