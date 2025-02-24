@@ -2,13 +2,28 @@ package dcrustm.ecell.mobile.ui.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.googlefonts.Font
+import androidx.compose.ui.text.googlefonts.GoogleFont
+import dcrustm.ecell.mobile.R
+
+val provider = GoogleFont.Provider(
+    providerAuthority = "com.google.android.gms.fonts",
+    providerPackage = "com.google.android.gms",
+    certificates = R.array.com_google_android_gms_fonts_certs
+)
 
 val bodyFontFamily = FontFamily(
-
+    Font(
+        googleFont = GoogleFont("Inter"),
+        fontProvider = provider,
+    )
 )
 
 val displayFontFamily = FontFamily(
-
+    Font(
+        googleFont = GoogleFont("Space Grotesk"),
+        fontProvider = provider,
+    )
 )
 
 // Default Material 3 typography values
@@ -31,4 +46,3 @@ val AppTypography = Typography(
     labelMedium = baseline.labelMedium.copy(fontFamily = bodyFontFamily),
     labelSmall = baseline.labelSmall.copy(fontFamily = bodyFontFamily),
 )
-
