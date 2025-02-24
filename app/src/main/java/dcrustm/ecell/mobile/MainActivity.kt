@@ -17,7 +17,7 @@ class MainActivity : ComponentActivity() {
     lateinit var checkOnBoardingCompletedUseCase: CheckOnBoardingCompletedUseCase
 
     @Inject
-    lateinit var setOnBoardingCompletedUseCase: SetOnBoardingCompleteUseCase
+    lateinit var setOnBoardingCompleteUseCase: SetOnBoardingCompleteUseCase
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
