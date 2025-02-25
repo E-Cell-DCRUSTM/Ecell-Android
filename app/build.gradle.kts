@@ -8,7 +8,7 @@ plugins {
 
 android {
     namespace = "dcrustm.ecell.mobile"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "dcrustm.ecell.mobile"
@@ -98,6 +98,11 @@ dependencies {
     // Kotlinx serialization library
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-core:1.8.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.0")
+
+    // Pager library
+    implementation("com.google.accompanist:accompanist-pager:0.22.0-rc")
+    implementation("com.google.accompanist:accompanist-pager-indicators:0.22.0-rc")
+
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
