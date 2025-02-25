@@ -33,7 +33,7 @@ import dcrustm.ecell.mobile.ui.theme.AppTheme
 // TODO: Checkout the colors from an expert 
 
 @Composable
-fun WelcomeScreen(modifier: Modifier = Modifier) {
+fun WelcomeScreen(onGetStartedClick: () -> Unit, modifier: Modifier = Modifier) {
     Column(
         verticalArrangement = Arrangement.Top,
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -88,7 +88,7 @@ fun WelcomeScreen(modifier: Modifier = Modifier) {
                 )
 
                 Button(
-                    onClick = {},
+                    onClick = onGetStartedClick,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color.Black
                     ),
@@ -104,9 +104,7 @@ fun WelcomeScreen(modifier: Modifier = Modifier) {
                         fontSize = 20.sp
                     )
                 }
-
             }
-
         }
     }
 }
@@ -116,7 +114,9 @@ fun WelcomeScreen(modifier: Modifier = Modifier) {
 private fun WelcomeScreenPreview() {
 
     AppTheme {
-        WelcomeScreen()
+        WelcomeScreen(
+            onGetStartedClick = {}
+        )
     }
 
 }

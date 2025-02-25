@@ -78,6 +78,7 @@ fun SignInScreen(
 
         // TODO: Create a common button shape
 
+        // Google sign up/ login button
         Button(
             onClick = onGoogleButtonClick,
             colors = ButtonDefaults.buttonColors(
