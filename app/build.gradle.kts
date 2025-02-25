@@ -2,8 +2,10 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    kotlin("plugin.serialization")
     id("com.google.devtools.ksp")
     id("com.google.dagger.hilt.android")
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -102,6 +104,15 @@ dependencies {
     // Pager library
     implementation("com.google.accompanist:accompanist-pager:0.22.0-rc")
     implementation("com.google.accompanist:accompanist-pager-indicators:0.22.0-rc")
+
+    // Firebase BOM
+    implementation(platform("com.google.firebase:firebase-bom:33.9.0"))
+
+    // Firebase Authentication (for Google Sign-In)
+    implementation("com.google.firebase:firebase-auth")
+
+    // Google Sign-In SDK
+    implementation("com.google.android.gms:play-services-auth:21.3.0")
 
 
     testImplementation(libs.junit)
