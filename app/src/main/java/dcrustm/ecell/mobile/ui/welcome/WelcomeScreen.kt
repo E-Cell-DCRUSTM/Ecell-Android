@@ -50,7 +50,6 @@ fun WelcomeScreen(onGetStartedClick: () -> Unit, modifier: Modifier = Modifier) 
         modifier = modifier
             .fillMaxSize()
             .statusBarsPadding()
-            .background(Color.Gray)
     ) {
         Image(
             painter = painterResource(R.drawable.logo_color),
@@ -63,7 +62,7 @@ fun WelcomeScreen(onGetStartedClick: () -> Unit, modifier: Modifier = Modifier) 
             modifier = Modifier.height(80.dp)
         )
 
-        DummyContainerGrid(modifier.fillMaxWidth())
+        PosterGrid()
 
         Spacer(
             modifier = Modifier.weight(1f)
@@ -71,6 +70,7 @@ fun WelcomeScreen(onGetStartedClick: () -> Unit, modifier: Modifier = Modifier) 
 
         Surface(
             color = Color(0xFCFCF9FF),
+            shadowElevation = 10.dp,
             modifier = Modifier
                 .align(Alignment.End)
                 .fillMaxWidth()

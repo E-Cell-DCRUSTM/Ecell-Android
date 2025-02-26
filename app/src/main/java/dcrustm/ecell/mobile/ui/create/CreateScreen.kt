@@ -29,14 +29,14 @@ fun CreateScreen(modifier: Modifier = Modifier) {
             modifier = Modifier.padding(bottom = 20.dp)
         )
         Image(
-            painter = painterResource(R.drawable.placeholder_construction),
+            painter = painterResource(R.drawable.pos_10),
             contentDescription = "Under construction",
             modifier = Modifier.size(200.dp)
         )
     }
 }
 
-@Preview
+@Preview(showBackground = true)
 @Composable
 private fun CreateScreenPreview() {
     CreateScreen()

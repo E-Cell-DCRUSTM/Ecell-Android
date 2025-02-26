@@ -12,7 +12,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsEndWidth
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Email
 import androidx.compose.material3.Button
@@ -23,6 +26,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
@@ -40,23 +44,30 @@ fun SignInScreen(
     onAccountAlreadyClick: () -> Unit
 ) {
     Column(
-        verticalArrangement = Arrangement.Bottom,
+        verticalArrangement = Arrangement.Top,
         horizontalAlignment = Alignment.Start,
         modifier = modifier
             .fillMaxSize()
-            .padding(horizontal = 20.dp, vertical = 50.dp)
+            .statusBarsPadding()
             .navigationBarsPadding()
 
     ) {
         Image(
-            painter = painterResource(R.drawable.logo_color),
-            contentDescription = "Official ECell Logo",
-            modifier = Modifier.size(120.dp)
+            painter = painterResource(R.drawable.team),
+            contentDescription = "The ecell team with the VC",
+            modifier = Modifier.align(Alignment.Start)
+                .padding(end = 20.dp)
+                .clip(RoundedCornerShape(bottomEnd = 60.dp))
         )
 
-        Spacer(
-            modifier.height(32.dp)
+
+        Image(
+            painter = painterResource(R.drawable.logo_color),
+            contentDescription = "Official ECell Logo",
+            modifier = Modifier.size(160.dp)
+                .padding(horizontal = 20.dp)
         )
+
         Text(
             text = "Start your journey today",
             textAlign = TextAlign.Start,
@@ -64,16 +75,18 @@ fun SignInScreen(
             modifier = Modifier
                 .width(240.dp)
                 .padding(bottom = 20.dp)
+                .padding(horizontal = 20.dp)
         )
 
 
         Text(
-            text = "Choose your favorite option to create an account and get started",
-            style = MaterialTheme.typography.bodyLarge
+            text = "Choose your favorite option to create an account to get started",
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.padding(horizontal = 20.dp)
         )
 
         Spacer(
-            modifier.height(100.dp)
+            modifier.height(32.dp)
         )
 
         // TODO: Create a common button shape
@@ -88,6 +101,7 @@ fun SignInScreen(
                 .align(Alignment.CenterHorizontally)
                 .fillMaxWidth(0.9f)
                 .height(54.dp)
+                .padding(horizontal = 20.dp)
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -119,6 +133,7 @@ fun SignInScreen(
                 .align(Alignment.CenterHorizontally)
                 .fillMaxWidth(0.9f)
                 .height(54.dp)
+                .padding(horizontal = 20.dp)
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,

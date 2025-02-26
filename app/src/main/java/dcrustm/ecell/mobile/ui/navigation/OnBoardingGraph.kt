@@ -48,7 +48,7 @@ fun OnboardingNavigation(
 
         composable<MainAppRoute> {
             // Implement the actual home screen graph
-            MainGraph()
+//            MainGraph()
         }
 
     }

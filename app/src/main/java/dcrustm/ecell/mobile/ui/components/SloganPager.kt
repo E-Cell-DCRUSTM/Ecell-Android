@@ -40,7 +40,7 @@ fun SloganPager(headerText: String, bodyText: String, modifier: Modifier = Modif
 
 @Preview
 @Composable
-private fun SlognPagerPreview() {
+private fun SloganPagerPreview() {
     AppTheme {
         SloganPager(
             headerText = "Ideate",
