@@ -1,6 +1,7 @@
 package dcrustm.ecell.mobile.ui.welcome
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -9,7 +10,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -26,20 +26,31 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.google.accompanist.pager.ExperimentalPagerApi
+import com.google.accompanist.pager.HorizontalPager
+import com.google.accompanist.pager.HorizontalPagerIndicator
+import com.google.accompanist.pager.rememberPagerState
 import dcrustm.ecell.mobile.R
+import dcrustm.ecell.mobile.data.local.slogans
 import dcrustm.ecell.mobile.ui.components.DummyContainerGrid
+import dcrustm.ecell.mobile.ui.components.SloganPager
 import dcrustm.ecell.mobile.ui.theme.AppTheme
 
 // TODO: Checkout the colors from an expert 
 
+@OptIn(ExperimentalPagerApi::class)
 @Composable
 fun WelcomeScreen(onGetStartedClick: () -> Unit, modifier: Modifier = Modifier) {
+
+    val pagerState = rememberPagerState()
+
     Column(
         verticalArrangement = Arrangement.Top,
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = modifier
             .fillMaxSize()
             .statusBarsPadding()
+            .background(Color.Gray)
     ) {
         Image(
             painter = painterResource(R.drawable.logo_color),
@@ -53,12 +64,13 @@ fun WelcomeScreen(onGetStartedClick: () -> Unit, modifier: Modifier = Modifier) 
         )
 
         DummyContainerGrid(modifier.fillMaxWidth())
+
         Spacer(
             modifier = Modifier.weight(1f)
         )
 
         Surface(
-            color = Color.LightGray,
+            color = Color(0xFCFCF9FF),
             modifier = Modifier
                 .align(Alignment.End)
                 .fillMaxWidth()
@@ -67,24 +79,31 @@ fun WelcomeScreen(onGetStartedClick: () -> Unit, modifier: Modifier = Modifier) 
         ) {
             Column(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(30.dp),
+                    .fillMaxSize(),
                 verticalArrangement = Arrangement.Top,
                 horizontalAlignment = Alignment.Start
             ) {
 
-                Text(
-                    text = "Ideate",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontSize = 32.sp,
-                    modifier = Modifier.padding(bottom = 10.dp)
+                HorizontalPager(
+                    count = slogans.size,
+                    state = pagerState,
+                    modifier = Modifier.height(140.dp)
+                ) { page ->
+                    val (title, description) = slogans[page]
+                    SloganPager(headerText = title, bodyText = description)
+                }
+
+                HorizontalPagerIndicator(
+                    pagerState = pagerState,
+                    activeColor = Color.Black, // Blue active dot
+                    inactiveColor = Color.Gray.copy(alpha = 0.5f), // Faded inactive dots
+                    indicatorWidth = 8.dp,
+                    spacing = 8.dp,
+                    modifier = Modifier.align(Alignment.CenterHorizontally)
                 )
 
-                Text(
-                    text = "Empower your journey",
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontSize = 24.sp,
-                    modifier = Modifier.padding(bottom = 26.dp)
+                Spacer(
+                    modifier = Modifier.height(30.dp)
                 )
 
                 Button(
