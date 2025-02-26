@@ -1,6 +1,7 @@
 package dcrustm.ecell.mobile.ui.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.credentials.CredentialManager
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -24,6 +25,7 @@ object MainAppRoute
 @Composable
 fun OnboardingNavigation(
     navController: NavHostController = rememberNavController(),
+    credentialManager: CredentialManager,
     startDestination: Any = WelcomeAppRoute
 ) {
     NavHost(
@@ -39,7 +41,9 @@ fun OnboardingNavigation(
         }
 
         composable<SignInAppRoute> {
-            SignInApp()
+            SignInApp(
+                credentialManager = credentialManager
+            )
         }
 
         composable<MainAppRoute> {

@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.credentials.CredentialManager
 import dagger.hilt.android.AndroidEntryPoint
 import dcrustm.ecell.mobile.domain.usecase.CheckOnBoardingCompletedUseCase
 import dcrustm.ecell.mobile.domain.usecase.SetOnBoardingCompleteUseCase
@@ -15,11 +16,14 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
+    val credentialManager = CredentialManager.create(this)
+
     @Inject
     lateinit var checkOnBoardingCompletedUseCase: CheckOnBoardingCompletedUseCase
 
     @Inject
     lateinit var setOnBoardingCompleteUseCase: SetOnBoardingCompleteUseCase
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -27,7 +31,9 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             AppTheme {
-                OnboardingNavigation()
+                OnboardingNavigation(
+                    credentialManager = credentialManager
+                )
             }
         }
     }

@@ -1,5 +1,7 @@
 package dcrustm.ecell.mobile.ui
 
+import android.app.Activity
+import androidx.credentials.CredentialManager
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -33,6 +35,7 @@ class AuthViewModel @Inject constructor(
         if (isAuthenticated) {
             val user = getCurrentUserUseCase()
             user?.let {
+                println("The user is already authenticated!")
                 _authState.value = AuthState.Authenticated(it)
             } ?: run {
                 _authState.value = AuthState.Unauthenticated
@@ -42,15 +45,17 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    fun signInWithGoogle(idToken: String) {
+    fun signInWithGoogle(credentialManager: CredentialManager, activity: Activity) {
         _authState.value = AuthState.Loading
         viewModelScope.launch {
-            signInWithGoogleUseCase(idToken)
+            signInWithGoogleUseCase(credentialManager, activity)
                 .onSuccess { user ->
-                    _authState.value = AuthState.Authenticated(user)
+                    println("Successful login: $user")
+//                    _authState.value = AuthState.Authenticated(user)
                 }
                 .onFailure { error ->
-                    _authState.value = AuthState.Error(error.message ?: "Authentication failed")
+                    println("Authentication failed")
+//                    _authState.value = AuthState.Error(error.message ?: "Authentication failed")
                 }
         }
     }
@@ -59,9 +64,11 @@ class AuthViewModel @Inject constructor(
         viewModelScope.launch {
             signOutUseCase()
                 .onSuccess {
-                    _authState.value = AuthState.Unauthenticated
+                    println("Sign out successfully!")
+//                    _authState.value = AuthState.Unauthenticated
                 }
                 .onFailure { error ->
+                    println("Sign out failed")
                     _authState.value = AuthState.Error(error.message ?: "Sign out failed")
                 }
         }
