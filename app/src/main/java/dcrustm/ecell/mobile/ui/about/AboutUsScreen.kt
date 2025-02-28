@@ -7,9 +7,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.HorizontalPager
@@ -247,7 +249,6 @@ fun AboutDcrustCard(pagerState: PagerState, currentPage: Int) {
 
     Surface(
         color = Color(0xfcfcf9ff),
-        shadowElevation = 4.dp,
         shape = RoundedCornerShape(10.dp),
         modifier = Modifier
             .padding(vertical = 8.dp)
@@ -307,7 +308,6 @@ fun VisionCard(pagerState: PagerState, currentPage: Int) {
 
     Surface(
         color = Color(0xfcfcf9ff),
-        shadowElevation = 4.dp,
         shape = RoundedCornerShape(10.dp),
         modifier = Modifier
             .padding(vertical = 8.dp)
@@ -340,8 +340,13 @@ fun VisionCard(pagerState: PagerState, currentPage: Int) {
                         "big and are equipped with the tools to bring those dreams to life. " +
                         "By creating a supportive and dynamic environment, we aim to become a " +
                         "leading hub for entrepreneurial excellence, bridging the gap between academia and " +
-                        "industry, and nurturing the next generation of entrepreneurs who will shape the future." +
-                        "Our vision is to leave a lasting impact on both our campus and the broader startup ecosystem, " +
+                        "industry, and nurturing the next generation of entrepreneurs who will shape the future.",
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(bottom = 20.dp)
+            )
+
+            Text(
+                text = "Our vision is to leave a lasting impact on both our campus and the broader startup ecosystem, " +
                         "driving positive change through entrepreneurial ventures.",
                 style = MaterialTheme.typography.bodyMedium,
             )
@@ -356,7 +361,6 @@ fun MissionCard(pagerState: PagerState, currentPage: Int) {
 
     Surface(
         color = Color(0xfcfcf9ff),
-        shadowElevation = 4.dp,
         shape = RoundedCornerShape(10.dp),
         modifier = Modifier
             .padding(vertical = 8.dp)
@@ -389,13 +393,30 @@ fun MissionCard(pagerState: PagerState, currentPage: Int) {
                         "platform they need to innovate and create impactful solutions. Through " +
                         "brainstorming sessions, networking opportunities, and hands-on workshops, " +
                         "we aim to ignite the entrepreneurial spirit in every student, enabling them to " +
-                        "turn their ideas into reality." +
-                        "We strive to build a community where collaboration, " +
+                        "turn their ideas into reality.",
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(bottom = 20.dp)
+            )
+
+            Text(
+                text = "We strive to build a community where collaboration, " +
                         "creativity, and leadership thrive, helping students not only grow " +
                         "as entrepreneurs but also develop skills that prepare them for a " +
                         "successful future.",
                 style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(bottom = 20.dp)
+            )
+
+            Spacer(Modifier.weight(1f))
+            
+            Image(
+                painter = painterResource(R.drawable.logo_black),
+                contentDescription = "Ecell watermark logo",
+                modifier = Modifier.size(60.dp)
+                    .offset(x=-6.dp)
+            )
+            Text(
+                text = "v25.02.28",
+                style = MaterialTheme.typography.bodySmall
             )
         }
     }
