@@ -1,4 +1,4 @@
-package dcrustm.ecell.mobile.ui.signin
+package dcrustm.ecell.mobile.ui.onboarding.signin
 
 import android.annotation.SuppressLint
 import android.app.Activity
@@ -7,7 +7,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.credentials.CredentialManager
 import androidx.hilt.navigation.compose.hiltViewModel
-import dcrustm.ecell.mobile.ui.AuthViewModel
+import dcrustm.ecell.mobile.ui.onboarding.AuthViewModel
 
 @SuppressLint("ContextCastToActivity")
 @Composable

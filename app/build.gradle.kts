@@ -107,6 +107,8 @@ dependencies {
     // Pager library
     implementation("com.google.accompanist:accompanist-pager:0.22.0-rc")
     implementation("com.google.accompanist:accompanist-pager-indicators:0.22.0-rc")
+    // For blur effect
+    implementation("com.google.accompanist:accompanist-systemuicontroller:0.28.0")
 
     // Firebase BOM
     implementation(platform("com.google.firebase:firebase-bom:33.9.0"))

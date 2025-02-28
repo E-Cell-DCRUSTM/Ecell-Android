@@ -1,4 +1,4 @@
-package dcrustm.ecell.mobile.ui
+package dcrustm.ecell.mobile.ui.onboarding
 
 import android.app.Activity
 import androidx.credentials.CredentialManager

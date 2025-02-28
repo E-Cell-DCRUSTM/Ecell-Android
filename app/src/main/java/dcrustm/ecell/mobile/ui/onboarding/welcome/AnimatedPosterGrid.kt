@@ -1,4 +1,4 @@
-package dcrustm.ecell.mobile.ui.welcome
+package dcrustm.ecell.mobile.ui.onboarding.welcome
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement

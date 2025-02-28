@@ -8,15 +8,14 @@ import androidx.credentials.CredentialManager
 import dagger.hilt.android.AndroidEntryPoint
 import dcrustm.ecell.mobile.domain.usecase.CheckOnBoardingCompletedUseCase
 import dcrustm.ecell.mobile.domain.usecase.SetOnBoardingCompleteUseCase
-import dcrustm.ecell.mobile.ui.navigation.OnboardingNavigation
+import dcrustm.ecell.mobile.navigation.OnBoardingNavigation
 import dcrustm.ecell.mobile.ui.theme.AppTheme
-import dcrustm.ecell.mobile.ui.welcome.WelcomeScreen
 import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
-    val credentialManager = CredentialManager.create(this)
+    private val credentialManager = CredentialManager.create(this)
 
     @Inject
     lateinit var checkOnBoardingCompletedUseCase: CheckOnBoardingCompletedUseCase
@@ -31,7 +30,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             AppTheme {
-                OnboardingNavigation(
+                OnBoardingNavigation(
                     credentialManager = credentialManager
                 )
             }

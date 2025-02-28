@@ -1,4 +1,4 @@
-package dcrustm.ecell.mobile.ui.signin
+package dcrustm.ecell.mobile.ui.onboarding.signin
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
