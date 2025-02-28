@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
+import androidx.compose.foundation.pager.VerticalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -205,7 +206,7 @@ fun AboutUsScreen(modifier: Modifier = Modifier) {
             )
         }
     ) { innerPadding ->
-        HorizontalPager(
+        VerticalPager(
             state = pagerState,
             modifier = Modifier
                 .padding(innerPadding)
@@ -216,7 +217,7 @@ fun AboutUsScreen(modifier: Modifier = Modifier) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .fillMaxHeight(0.8f),
+                    .fillMaxHeight(),
                 contentAlignment = Alignment.TopCenter
             ) {
                 when (page) {
@@ -249,7 +250,6 @@ fun AboutDcrustCard(pagerState: PagerState, currentPage: Int) {
         shadowElevation = 4.dp,
         shape = RoundedCornerShape(10.dp),
         modifier = Modifier
-            .fillMaxSize()
             .padding(vertical = 8.dp)
             .alpha(alpha)
     ) {
@@ -285,6 +285,17 @@ fun AboutDcrustCard(pagerState: PagerState, currentPage: Int) {
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(bottom = 20.dp)
             )
+
+            Text(
+                text = "The University has been considered eligible for grants under Section 12(B) " +
+                        "of UGC Act, 1956 in March, 2009. The University has got affiliating status and " +
+                        "the technical and professional College/Institutes located in the District Sonepat have " +
+                        "been affiliated to the University. Six B.Tech programmes of the University have also been " +
+                        "accredited by National Board of Accreditation (NBA). University has a Central Instrumentation " +
+                        "Laboratory which is available to scholars belong to different depts or outside institute as central " +
+                        "research facility.",
+                style = MaterialTheme.typography.bodyMedium,
+            )
         }
     }
 }
@@ -299,7 +310,6 @@ fun VisionCard(pagerState: PagerState, currentPage: Int) {
         shadowElevation = 4.dp,
         shape = RoundedCornerShape(10.dp),
         modifier = Modifier
-            .fillMaxSize()
             .padding(vertical = 8.dp)
             .alpha(alpha)
     ) {
@@ -330,9 +340,10 @@ fun VisionCard(pagerState: PagerState, currentPage: Int) {
                         "big and are equipped with the tools to bring those dreams to life. " +
                         "By creating a supportive and dynamic environment, we aim to become a " +
                         "leading hub for entrepreneurial excellence, bridging the gap between academia and " +
-                        "industry, and nurturing the next generation of entrepreneurs who will shape the future.",
+                        "industry, and nurturing the next generation of entrepreneurs who will shape the future." +
+                        "Our vision is to leave a lasting impact on both our campus and the broader startup ecosystem, " +
+                        "driving positive change through entrepreneurial ventures.",
                 style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(bottom = 20.dp)
             )
         }
     }
@@ -348,7 +359,6 @@ fun MissionCard(pagerState: PagerState, currentPage: Int) {
         shadowElevation = 4.dp,
         shape = RoundedCornerShape(10.dp),
         modifier = Modifier
-            .fillMaxSize()
             .padding(vertical = 8.dp)
             .alpha(alpha)
     ) {
@@ -379,7 +389,11 @@ fun MissionCard(pagerState: PagerState, currentPage: Int) {
                         "platform they need to innovate and create impactful solutions. Through " +
                         "brainstorming sessions, networking opportunities, and hands-on workshops, " +
                         "we aim to ignite the entrepreneurial spirit in every student, enabling them to " +
-                        "turn their ideas into reality.",
+                        "turn their ideas into reality." +
+                        "We strive to build a community where collaboration, " +
+                        "creativity, and leadership thrive, helping students not only grow " +
+                        "as entrepreneurs but also develop skills that prepare them for a " +
+                        "successful future.",
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(bottom = 20.dp)
             )
