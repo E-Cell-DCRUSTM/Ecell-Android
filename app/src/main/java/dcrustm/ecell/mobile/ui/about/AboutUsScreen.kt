@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.VerticalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -47,104 +46,6 @@ import androidx.compose.ui.unit.sp
 import dcrustm.ecell.mobile.R
 import dcrustm.ecell.mobile.ui.theme.AppTheme
 import kotlinx.coroutines.launch
-
-//@Composable
-//fun AboutUsScreen(modifier: Modifier = Modifier) {
-//    val sections = listOf("About DCRUST", "Our Vision", "Our Mission")
-//    val pagerState = rememberPagerState(pageCount = { sections.size })
-//    val coroutineScope = rememberCoroutineScope()
-//
-//    Column(
-//        modifier = modifier
-//            .fillMaxSize()
-//            .statusBarsPadding()
-//            .background(Color(0xFFF8F8F8))
-//    ) {
-//        // Navigation row with back button and tabs in the same row
-//        Row(
-//            verticalAlignment = Alignment.CenterVertically,
-//            modifier = Modifier
-//                .fillMaxWidth()
-//                .padding(top = 16.dp)
-//        ) {
-//            // Back/cross icon
-//            Icon(
-//                painter = painterResource(id = android.R.drawable.ic_menu_close_clear_cancel),
-//                contentDescription = "Back",
-//                modifier = Modifier
-//                    .padding(start = 16.dp)
-//                    .size(24.dp)
-//                    .clickable { /* Handle back navigation */ }
-//            )
-//
-//            // Tab navigation
-//            ScrollableTabRow(
-//                selectedTabIndex = pagerState.currentPage,
-//                edgePadding = 16.dp,
-//                indicator = { /* No indicator */ },
-//                divider = { /* No divider */ },
-//                containerColor = Color.Transparent,
-//                modifier = Modifier
-//                    .weight(1f)
-//                    .padding(vertical = 16.dp)
-//            ) {
-//                sections.forEachIndexed { index, title ->
-//                    val isSelected = pagerState.currentPage == index
-//                    Tab(
-//                        selected = isSelected,
-//                        onClick = {
-//                            coroutineScope.launch {
-//                                pagerState.animateScrollToPage(index)
-//                            }
-//                        },
-//                        modifier = Modifier
-//                            .padding(horizontal = 4.dp)
-//                            .clip(RoundedCornerShape(20.dp))
-//                            .background(
-//                                if (isSelected) Color(0xFF2D2D2D) else Color(0xFFE8E8E8)
-//                            )
-//                    ) {
-//                        Text(
-//                            text = title,
-//                            color = if (isSelected) Color.White else Color.DarkGray,
-//                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-//                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-//                        )
-//                    }
-//                }
-//            }
-//        }
-//
-//        // Content pager
-//        HorizontalPager(
-//            state = pagerState,
-//            modifier = Modifier.fillMaxSize(),
-//            pageSpacing = 16.dp,
-//            contentPadding = PaddingValues(horizontal = 10.dp)
-//        ) { page ->
-//            Box(
-//                modifier = Modifier.fillMaxWidth()
-//                    .fillMaxHeight(0.8f),
-//                contentAlignment = Alignment.TopCenter
-//            ) {
-//                when (page) {
-//                    0 -> AboutDcrustCard(
-//                        pagerState = pagerState,
-//                        currentPage = page
-//                    )
-//                    1 -> VisionCard(
-//                        pagerState = pagerState,
-//                        currentPage = page
-//                    )
-//                    2 -> MissionCard(
-//                        pagerState = pagerState,
-//                        currentPage = page
-//                    )
-//                }
-//            }
-//        }
-//    }
-//}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -285,17 +186,6 @@ fun AboutDcrustCard(pagerState: PagerState, currentPage: Int) {
                         "and also to achieve excellence in these and connected fields.",
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(bottom = 20.dp)
-            )
-
-            Text(
-                text = "The University has been considered eligible for grants under Section 12(B) " +
-                        "of UGC Act, 1956 in March, 2009. The University has got affiliating status and " +
-                        "the technical and professional College/Institutes located in the District Sonepat have " +
-                        "been affiliated to the University. Six B.Tech programmes of the University have also been " +
-                        "accredited by National Board of Accreditation (NBA). University has a Central Instrumentation " +
-                        "Laboratory which is available to scholars belong to different depts or outside institute as central " +
-                        "research facility.",
-                style = MaterialTheme.typography.bodyMedium,
             )
         }
     }

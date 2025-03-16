@@ -9,6 +9,8 @@ import dagger.hilt.android.AndroidEntryPoint
 import dcrustm.ecell.mobile.domain.usecase.CheckOnBoardingCompletedUseCase
 import dcrustm.ecell.mobile.domain.usecase.SetOnBoardingCompleteUseCase
 import dcrustm.ecell.mobile.navigation.OnBoardingNavigation
+import dcrustm.ecell.mobile.ui.about.AboutUsScreen
+import dcrustm.ecell.mobile.ui.admin.AdminScreen
 import dcrustm.ecell.mobile.ui.theme.AppTheme
 import javax.inject.Inject
 
@@ -30,9 +32,10 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             AppTheme {
-                OnBoardingNavigation(
-                    credentialManager = credentialManager
-                )
+//                OnBoardingNavigation(
+//                    credentialManager = credentialManager
+//                )
+                AdminScreen()
             }
         }
     }
