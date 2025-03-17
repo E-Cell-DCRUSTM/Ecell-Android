@@ -8,6 +8,7 @@ import androidx.credentials.CredentialManager
 import dagger.hilt.android.AndroidEntryPoint
 import dcrustm.ecell.mobile.domain.usecase.CheckOnBoardingCompletedUseCase
 import dcrustm.ecell.mobile.domain.usecase.SetOnBoardingCompleteUseCase
+import dcrustm.ecell.mobile.navigation.MainScreen
 import dcrustm.ecell.mobile.navigation.OnBoardingNavigation
 import dcrustm.ecell.mobile.ui.about.AboutUsScreen
 import dcrustm.ecell.mobile.ui.admin.AdminScreen
@@ -35,7 +36,8 @@ class MainActivity : ComponentActivity() {
 //                OnBoardingNavigation(
 //                    credentialManager = credentialManager
 //                )
-                AdminScreen()
+            //                ()
+                MainScreen()
             }
         }
     }
