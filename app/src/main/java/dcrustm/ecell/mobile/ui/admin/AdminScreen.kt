@@ -1,5 +1,6 @@
 package dcrustm.ecell.mobile.ui.admin
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -17,6 +18,10 @@ import androidx.compose.material.icons.outlined.MeetingRoom
 import androidx.compose.material.icons.outlined.NotificationAdd
 import androidx.compose.material.icons.outlined.Quiz
 import androidx.compose.material.icons.outlined.Timer3Select
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CardDefaults.cardColors
+import androidx.compose.material3.CardDefaults.cardElevation
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -99,40 +104,46 @@ fun AdminScreen(
     }
 }
 
-
 @Composable
 fun AdminFeatureCard(
     modifier: Modifier = Modifier,
     backgroundColor: Color = Color(0xfff5f5f4),
-    contentPadding: Dp = 10.dp,
+    contentPadding: Dp = 16.dp,
     title: String = "Push",
     description: String = "Notification",
     leadingIcon: ImageVector = Icons.Outlined.NotificationAdd,
     onClick: () -> Unit = {}
 ) {
-    Surface(
+// Determine the border color dynamically from the theme.
+    val borderColor = MaterialTheme.colorScheme.outline
+
+    Card(
         modifier = modifier
-            .height(180.dp)
-            .clickable { onClick() },
+            .clickable { onClick() }
+            .height(180.dp),
         shape = RoundedCornerShape(20.dp),
-        color = backgroundColor,
-        shadowElevation = 1.dp
+        border = BorderStroke(1.dp, borderColor),
+        colors = CardDefaults.cardColors(containerColor = backgroundColor)
     ) {
         Column(
-            modifier = Modifier.padding(contentPadding),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(contentPadding),
             verticalArrangement = Arrangement.SpaceBetween,
             horizontalAlignment = Alignment.Start
         ) {
             Icon(
                 imageVector = leadingIcon,
                 contentDescription = "Push Notification",
-                modifier = Modifier.size(30.dp)
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(36.dp)
             )
 
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 16.sp)
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Row(
@@ -142,22 +153,78 @@ fun AdminFeatureCard(
                 ) {
                     Text(
                         text = description,
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Medium
-                        )
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Medium),
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Icon(
                         imageVector = Icons.Outlined.KeyboardArrowRight,
                         contentDescription = "Navigate",
-                        modifier = Modifier.size(30.dp)
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(28.dp)
                     )
                 }
             }
         }
     }
-
 }
+
+//@Composable
+//fun AdminFeatureCard(
+//    modifier: Modifier = Modifier,
+//    backgroundColor: Color = Color(0xfff5f5f4),
+//    contentPadding: Dp = 10.dp,
+//    title: String = "Push",
+//    description: String = "Notification",
+//    leadingIcon: ImageVector = Icons.Outlined.NotificationAdd,
+//    onClick: () -> Unit = {}
+//) {
+//    Surface(
+//        modifier = modifier
+//            .height(180.dp)
+//            .clickable { onClick() },
+//        shape = RoundedCornerShape(20.dp),
+//        color = backgroundColor,
+//        shadowElevation = 1.dp
+//    ) {
+//        Column(
+//            modifier = Modifier.padding(contentPadding),
+//            verticalArrangement = Arrangement.SpaceBetween,
+//            horizontalAlignment = Alignment.Start
+//        ) {
+//            Icon(
+//                imageVector = leadingIcon,
+//                contentDescription = "Push Notification",
+//                modifier = Modifier.size(30.dp)
+//            )
+//
+//            Column(modifier = Modifier.fillMaxWidth()) {
+//                Text(
+//                    text = title,
+//                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 16.sp)
+//                )
+//                Spacer(modifier = Modifier.height(4.dp))
+//                Row(
+//                    modifier = Modifier.fillMaxWidth(),
+//                    horizontalArrangement = Arrangement.SpaceBetween,
+//                    verticalAlignment = Alignment.CenterVertically
+//                ) {
+//                    Text(
+//                        text = description,
+//                        style = MaterialTheme.typography.bodyMedium.copy(
+//                            fontSize = 20.sp,
+//                            fontWeight = FontWeight.Medium
+//                        )
+//                    )
+//                    Icon(
+//                        imageVector = Icons.Outlined.KeyboardArrowRight,
+//                        contentDescription = "Navigate",
+//                        modifier = Modifier.size(30.dp)
+//                    )
+//                }
+//            }
+//        }
+//    }
+//}
 
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
