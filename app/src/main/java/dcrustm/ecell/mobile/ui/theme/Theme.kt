@@ -6,6 +6,7 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.Color
+import kotlinx.serialization.json.JsonNull.content
 
 private val lightScheme = lightColorScheme(
     primary = primaryLight,
@@ -249,7 +250,7 @@ val unspecified_scheme = ColorFamily(
 
 @Composable
 fun AppTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    darkTheme: Boolean = false,
     content: @Composable() () -> Unit
 ) {
   val colorScheme = when {
