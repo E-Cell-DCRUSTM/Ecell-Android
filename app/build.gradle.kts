@@ -57,6 +57,8 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
 
+    implementation("com.google.accompanist:accompanist-flowlayout:0.31.1-alpha")
+
     // Google font provider
     implementation("androidx.compose.ui:ui-text-google-fonts:1.7.8")
 
