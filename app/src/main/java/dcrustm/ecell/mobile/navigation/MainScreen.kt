@@ -28,17 +28,19 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import dcrustm.ecell.mobile.R
 import dcrustm.ecell.mobile.ui.admin.AdminScreen
+import dcrustm.ecell.mobile.ui.gallery.GalleryScreen
 
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen() {
+fun MainScreen(rootNavController: NavHostController) {
     val navController = rememberNavController()
     // Observe the current back stack entry to change the top app bar title.
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
@@ -70,7 +72,10 @@ fun MainScreen() {
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = {  }) {
+                    IconButton(onClick = {
+                        rootNavController.navigate(RootScreen.Profile.route)
+                    }
+                    ) {
                         Image(
                             painter = painterResource(R.drawable.profile),
                             contentDescription = "Profile image",
@@ -81,7 +86,9 @@ fun MainScreen() {
                     }
                 },
                 actions = {
-                    IconButton(onClick = {  }) {
+                    IconButton(onClick = {
+                        rootNavController.navigate(RootScreen.Info.route)
+                    }) {
                         Icon(
                             imageVector = Icons.Outlined.Info,
                             contentDescription = "Info icon button"
@@ -151,12 +158,5 @@ fun DashboardScreen() {
 fun BlogsScreen() {
     Surface(modifier = Modifier.padding(16.dp)) {
         Text(text = "Blogs Content", style = MaterialTheme.typography.bodyLarge)
-    }
-}
-
-@Composable
-fun GalleryScreen() {
-    Surface(modifier = Modifier.padding(16.dp)) {
-        Text(text = "Gallery Content", style = MaterialTheme.typography.bodyLarge)
     }
 }

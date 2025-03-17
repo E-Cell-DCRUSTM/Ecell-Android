@@ -19,7 +19,7 @@ import androidx.compose.foundation.pager.VerticalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.ArrowBackIosNew
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -49,7 +49,7 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AboutUsScreen(modifier: Modifier = Modifier) {
+fun AboutUsScreen(onDismiss: () -> Unit, modifier: Modifier = Modifier) {
     val sections = listOf("About DCRUST", "Our Vision", "Our Mission")
     val pagerState = rememberPagerState(pageCount = { sections.size })
     val coroutineScope = rememberCoroutineScope()
@@ -62,9 +62,9 @@ fun AboutUsScreen(modifier: Modifier = Modifier) {
                     containerColor = Color(0xFFF8F8F8)
                 ),
                 navigationIcon = {
-                    IconButton(onClick = { /* Handle back navigation */ }) {
+                    IconButton(onClick = onDismiss) {
                         Icon(
-                            imageVector = Icons.Outlined.ArrowBackIosNew,
+                            imageVector = Icons.Outlined.Close,
                             contentDescription = "Back"
                         )
                     }
@@ -317,7 +317,9 @@ fun MissionCard(pagerState: PagerState, currentPage: Int) {
 @Composable
 private fun AboutUsScreenPreview() {
     AppTheme {
-        AboutUsScreen()
+        AboutUsScreen(
+            onDismiss = {}
+        )
     }
 
 }
