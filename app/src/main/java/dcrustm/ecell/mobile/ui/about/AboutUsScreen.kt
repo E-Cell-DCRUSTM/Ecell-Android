@@ -313,10 +313,6 @@ fun MissionCard(pagerState: PagerState, currentPage: Int) {
 }
 
 
-
-
-
-
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 private fun AboutUsScreenPreview() {

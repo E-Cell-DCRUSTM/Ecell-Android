@@ -1,10 +1,8 @@
 package dcrustm.ecell.mobile.ui.admin
 
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -14,7 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Info
@@ -23,9 +21,10 @@ import androidx.compose.material.icons.outlined.MeetingRoom
 import androidx.compose.material.icons.outlined.NotificationAdd
 import androidx.compose.material.icons.outlined.Quiz
 import androidx.compose.material.icons.outlined.Timer3Select
-import androidx.compose.material.icons.outlined.Vibration
-import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -42,98 +41,108 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import dcrustm.ecell.mobile.R
 import dcrustm.ecell.mobile.ui.theme.AppTheme
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AdminScreen(modifier: Modifier = Modifier) {
+fun AdminScreen(
+    modifier: Modifier = Modifier,
+    viewModel: AdminViewModel = hiltViewModel()
+) {
     Scaffold(
+        modifier = modifier,
         topBar = {
-            Row(
-                modifier = Modifier.fillMaxWidth()
-                    .statusBarsPadding()
-                    .padding(horizontal = 20.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Image(
-                    painter = painterResource(R.drawable.profile),
-                    modifier = Modifier.size(40.dp),
-                    contentDescription = null
-                )
-                Icon(
-                    imageVector = Icons.Outlined.Info,
-                    modifier = Modifier.size(24.dp),
-                    contentDescription = "Info icon button"
-                )
-            }
+            CenterAlignedTopAppBar(
+                title = {
+                    Text(
+                        text = "Admin Panel",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = { viewModel.onProfileClick() }) {
+                        Image(
+                            painter = painterResource(R.drawable.profile),
+                            contentDescription = "Profile image",
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                        )
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { viewModel.onInfoClick() }) {
+                        Icon(
+                            imageVector = Icons.Outlined.Info,
+                            contentDescription = "Info icon button"
+                        )
+                    }
+                },
+                modifier = Modifier.statusBarsPadding()
+            )
         },
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier.fillMaxSize()
-                .padding(innerPadding)
-                .padding(horizontal = 14.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+        content = { innerPadding ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-
-                AdminFeatureCard(
-                    modifier = Modifier.weight(1f)
+                Text(
+                    text = "Get Started",
+                    style = MaterialTheme.typography.titleLarge
                 )
-                Spacer(
-                    Modifier.width(20.dp)
-                )
-                AdminFeatureCard(
-                    title = "Host",
-                    description = "Meeting",
-                    leadingIcon = Icons.Outlined.MeetingRoom,
-                    modifier = Modifier.weight(1f)
-                )
-
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-
-                AdminFeatureCard(
-                    title = "Create",
-                    description = "Quiz",
-                    leadingIcon = Icons.Outlined.Quiz,
-                    modifier = Modifier.weight(1f)
-                )
-                Spacer(
-                    Modifier.width(20.dp)
-                )
-                AdminFeatureCard(
-                    title = "Create",
-                    description = "Buzzer",
-                    leadingIcon = Icons.Outlined.Timer3Select,
-                    modifier = Modifier.weight(1f)
-                )
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-
-                AdminFeatureCard(
-                    title = "Create",
-                    description = "Post",
-                    leadingIcon = Icons.Outlined.MeetingRoom,
-                    modifier = Modifier.weight(1f)
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    AdminFeatureCard(
+                        modifier = Modifier.weight(1f)
+                    )
+                    AdminFeatureCard(
+                        title = "Host",
+                        description = "Meeting",
+                        leadingIcon = Icons.Outlined.MeetingRoom,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    AdminFeatureCard(
+                        title = "Create",
+                        description = "Quiz",
+                        leadingIcon = Icons.Outlined.Quiz,
+                        modifier = Modifier.weight(1f)
+                    )
+                    AdminFeatureCard(
+                        title = "Create",
+                        description = "Buzzer",
+                        leadingIcon = Icons.Outlined.Timer3Select,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    AdminFeatureCard(
+                        title = "Create",
+                        description = "Post",
+                        leadingIcon = Icons.Outlined.MeetingRoom,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
             }
         }
-    }
+    )
 }
 
 @Composable
@@ -194,6 +203,7 @@ fun AdminFeatureCard(
     }
 
 }
+
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 private fun AdminScreenPreview() {
