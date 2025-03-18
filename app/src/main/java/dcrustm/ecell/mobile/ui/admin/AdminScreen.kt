@@ -13,19 +13,17 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.AddPhotoAlternate
+import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material.icons.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.MeetingRoom
 import androidx.compose.material.icons.outlined.NotificationAdd
-import androidx.compose.material.icons.outlined.Quiz
-import androidx.compose.material.icons.outlined.Timer3Select
+import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CardDefaults.cardColors
-import androidx.compose.material3.CardDefaults.cardElevation
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -36,7 +34,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import dcrustm.ecell.mobile.ui.theme.AppTheme
 
@@ -77,15 +74,15 @@ fun AdminScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             AdminFeatureCard(
-                title = "Create",
-                description = "Quiz",
-                leadingIcon = Icons.Outlined.Quiz,
+                title = "Add",
+                description = "Gallery",
+                leadingIcon = Icons.Outlined.AddPhotoAlternate,
                 modifier = Modifier.weight(1f)
             )
             AdminFeatureCard(
                 title = "Create",
-                description = "Buzzer",
-                leadingIcon = Icons.Outlined.Timer3Select,
+                description = "Blogpost",
+                leadingIcon = Icons.Outlined.EditNote,
                 modifier = Modifier.weight(1f)
             )
         }
@@ -95,9 +92,9 @@ fun AdminScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             AdminFeatureCard(
-                title = "Create",
-                description = "Post",
-                leadingIcon = Icons.Outlined.MeetingRoom,
+                title = "Roles",
+                description = "Manage admin roles",
+                leadingIcon = Icons.Outlined.Shield,
                 modifier = Modifier.weight(1f)
             )
         }
@@ -114,7 +111,6 @@ fun AdminFeatureCard(
     leadingIcon: ImageVector = Icons.Outlined.NotificationAdd,
     onClick: () -> Unit = {}
 ) {
-// Determine the border color dynamically from the theme.
     val borderColor = MaterialTheme.colorScheme.outline
 
     Card(
@@ -168,63 +164,6 @@ fun AdminFeatureCard(
     }
 }
 
-//@Composable
-//fun AdminFeatureCard(
-//    modifier: Modifier = Modifier,
-//    backgroundColor: Color = Color(0xfff5f5f4),
-//    contentPadding: Dp = 10.dp,
-//    title: String = "Push",
-//    description: String = "Notification",
-//    leadingIcon: ImageVector = Icons.Outlined.NotificationAdd,
-//    onClick: () -> Unit = {}
-//) {
-//    Surface(
-//        modifier = modifier
-//            .height(180.dp)
-//            .clickable { onClick() },
-//        shape = RoundedCornerShape(20.dp),
-//        color = backgroundColor,
-//        shadowElevation = 1.dp
-//    ) {
-//        Column(
-//            modifier = Modifier.padding(contentPadding),
-//            verticalArrangement = Arrangement.SpaceBetween,
-//            horizontalAlignment = Alignment.Start
-//        ) {
-//            Icon(
-//                imageVector = leadingIcon,
-//                contentDescription = "Push Notification",
-//                modifier = Modifier.size(30.dp)
-//            )
-//
-//            Column(modifier = Modifier.fillMaxWidth()) {
-//                Text(
-//                    text = title,
-//                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 16.sp)
-//                )
-//                Spacer(modifier = Modifier.height(4.dp))
-//                Row(
-//                    modifier = Modifier.fillMaxWidth(),
-//                    horizontalArrangement = Arrangement.SpaceBetween,
-//                    verticalAlignment = Alignment.CenterVertically
-//                ) {
-//                    Text(
-//                        text = description,
-//                        style = MaterialTheme.typography.bodyMedium.copy(
-//                            fontSize = 20.sp,
-//                            fontWeight = FontWeight.Medium
-//                        )
-//                    )
-//                    Icon(
-//                        imageVector = Icons.Outlined.KeyboardArrowRight,
-//                        contentDescription = "Navigate",
-//                        modifier = Modifier.size(30.dp)
-//                    )
-//                }
-//            }
-//        }
-//    }
-//}
 
 @Preview(showBackground = true, showSystemUi = true)
 @Composable

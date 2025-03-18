@@ -175,7 +175,7 @@ fun QuestionAdditionScreen(
             OutlinedTextField(
                 value = viewModel.shortAnswer,
                 onValueChange = {
-                    if (!it.contains(" ")) {  // Prevent spaces
+                    if (!it.contains(" ")) {
                         viewModel.shortAnswer = it
                     }
                 },
