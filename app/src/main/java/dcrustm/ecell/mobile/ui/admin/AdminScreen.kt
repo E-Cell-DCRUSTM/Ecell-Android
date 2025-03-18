@@ -93,7 +93,7 @@ fun AdminScreen(
         ) {
             AdminFeatureCard(
                 title = "Roles",
-                description = "Manage admin roles",
+                description = "Manage member roles",
                 leadingIcon = Icons.Outlined.Shield,
                 modifier = Modifier.weight(1f)
             )
