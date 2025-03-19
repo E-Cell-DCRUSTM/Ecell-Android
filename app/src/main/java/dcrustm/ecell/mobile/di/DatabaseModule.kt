@@ -11,6 +11,8 @@ import dcrustm.ecell.mobile.data.local.quiz.QuizDao
 import dcrustm.ecell.mobile.data.local.quiz.QuizDatabase
 import dcrustm.ecell.mobile.data.local.quiz.QuizRepository
 import dcrustm.ecell.mobile.data.local.quiz.QuizRepositoryImpl
+import dcrustm.ecell.mobile.data.local.user.UserDao
+import dcrustm.ecell.mobile.data.local.user.UserDatabase
 import javax.inject.Singleton
 
 @Module
@@ -28,5 +30,18 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideQuizRepository(dao: QuizDao): QuizRepository = QuizRepositoryImpl(dao)
+
+    @Provides
+    @Singleton
+    fun provideUserDatabase(@ApplicationContext context: Context): UserDatabase {
+        return Room.databaseBuilder(context, UserDatabase::class.java, "app_database")
+            .fallbackToDestructiveMigration()
+            .build()
+    }
+
+    @Provides
+    fun provideUserDao(database: UserDatabase): UserDao {
+        return database.userDao()
+    }
 
 }
