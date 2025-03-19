@@ -75,6 +75,7 @@ fun SignInScreen(
 
     // State to control the visibility of the email bottom sheet
     var showEmailBottomSheet by remember { mutableStateOf(false) }
+
     var showLoginBottomSheet by remember { mutableStateOf(false) }
 
     Column(
@@ -223,18 +224,26 @@ fun SignInScreen(
         }
     }
 
+    // LoginBottomSheet when "I already have an account" is clicked.
     if (showLoginBottomSheet) {
         ModalBottomSheet(
             onDismissRequest = { showLoginBottomSheet = false },
             containerColor = Color(0xFFF4F4F1),
             modifier = Modifier.fillMaxWidth()
         ) {
-            EmailBottomSheetContent { email, password, fullName ->
-                dummyOnEmailContinue(email, password, fullName)
-                showEmailBottomSheet = false
-            }
+            LoginBottomSheetContent(
+                onLogin = { email, password ->
+                    dummyOnLogin(email, password)
+                    showLoginBottomSheet = false
+                },
+                onGoogleClick = {
+                    dummyOnGoogleLogin()
+                    showLoginBottomSheet = false
+                }
+            )
         }
     }
+
 }
 
 val dummyOnEmailContinue: (String, String, String) -> Unit = { email, password, fullName ->
@@ -242,6 +251,213 @@ val dummyOnEmailContinue: (String, String, String) -> Unit = { email, password, 
     println("Password: $password")
     println("Full Name: $fullName")
 }
+
+val dummyOnLogin: (String, String) -> Unit = { email, password ->
+    println("Login Email: $email")
+    println("Login Password: $password")
+}
+
+val dummyOnGoogleLogin: () -> Unit = {
+    println("Login with Google clicked")
+}
+
+/**
+
+A new composable for the login bottom sheet with the following UI:
+
+Header "Welcome back"
+
+Inputs for email & password (grouped in a container)
+
+A Login button (triggering dummyOnLogin) which dismisses the sheet
+
+A horizontal divider with "OR" text in the middle.
+
+A slightly smaller "Continue with Google" button (triggering dummyOnGoogleLogin)
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun LoginBottomSheetContent(
+    onLogin: (email: String, password: String) -> Unit,
+    onGoogleClick: () -> Unit
+) {
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var passwordVisible by remember { mutableStateOf(false) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .fillMaxHeight()
+            .imePadding()
+            .verticalScroll(rememberScrollState())
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Top
+    ) {
+        Text(
+            text = "Welcome back",
+            style = MaterialTheme.typography.headlineSmall,
+            modifier = Modifier.padding(bottom = 20.dp)
+        )
+
+        // Grouped inputs for email and password (custom for login)
+        LoginGroupedTextFields(
+            email = email,
+            onEmailChange = { email = it },
+            password = password,
+            onPasswordChange = { password = it },
+            passwordVisible = passwordVisible,
+            onPasswordVisibilityToggle = { passwordVisible = !passwordVisible },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Login button
+        Button(
+            onClick = { onLogin(email, password) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp)
+        ) {
+            Text(text = "Login", style = MaterialTheme.typography.bodyLarge)
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Horizontal divider with "OR" text in-between
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            HorizontalDivider(modifier = Modifier.weight(1f), thickness = 1.dp, color = Color.Gray)
+            Text(text = "OR", modifier = Modifier.padding(horizontal = 8.dp))
+            HorizontalDivider(modifier = Modifier.weight(1f), thickness = 1.dp, color = Color.Gray)
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // "Continue with Google" button (smaller width and height)
+        Button(
+            onClick = { onGoogleClick() },
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color.Black
+            ),
+            modifier = Modifier
+                .align(Alignment.CenterHorizontally)
+                .fillMaxWidth(0.9f)
+                .height(48.dp)
+                .padding(horizontal = 20.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceAround,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Image(
+                    painter = painterResource(R.drawable.logo_google),
+                    contentDescription = null,
+                    modifier = Modifier.size(22.dp)
+                )
+                Text(
+                    text = "Continue with Google",
+                    style = MaterialTheme.typography.bodyLarge
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(80.dp))
+
+    }
+}
+
+/**
+
+A custom grouped input component for the login bottom sheet,
+
+displaying email and password in a container with a divider.
+ */
+@Composable
+fun LoginGroupedTextFields(
+    email: String,
+    onEmailChange: (String) -> Unit,
+    password: String,
+    onPasswordChange: (String) -> Unit,
+    passwordVisible: Boolean,
+    onPasswordVisibilityToggle: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier.border(1.dp, Color.Black, shape = RoundedCornerShape(8.dp))
+    ) {
+        // Email input row
+        Box(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 12.dp, top = 8.dp, bottom = 8.dp, end = 40.dp)
+            ) {
+                Text(
+                    text = "Email Address",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = Color.Black
+                )
+                BasicTextField(
+                    value = email,
+                    onValueChange = onEmailChange,
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(color = Color.Black),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+
+        // Divider between email and password rows.
+        HorizontalDivider(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(1.dp),
+            color = Color.Black
+        )
+
+        // Password input row
+        Box(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 12.dp, top = 8.dp, bottom = 8.dp, end = 40.dp)
+            ) {
+                Text(
+                    text = "Password",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = Color.Black
+                )
+                BasicTextField(
+                    value = password,
+                    onValueChange = onPasswordChange,
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(color = Color.Black),
+                    visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+            IconButton(
+                onClick = onPasswordVisibilityToggle,
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .padding(end = 12.dp)
+            ) {
+                Icon(
+                    imageVector = if (passwordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
+                    contentDescription = if (passwordVisible) "Hide password" else "Show password"
+                )
+            }
+        }
+
+    }
+}
+
+
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
