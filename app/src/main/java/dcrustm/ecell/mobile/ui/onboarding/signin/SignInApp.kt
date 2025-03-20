@@ -21,7 +21,7 @@ fun SignInApp(
     // TODO: Implement a bottom bar for email address. For next iteration, let's authenticate the email with an otp.
 
     SignInScreen(
-        onGoogleButtonClick = {  },
+        onGoogleButtonClick = { viewModel.signUpWithGoogle(credentialManager, context) },
         onAccountAlreadyClick = {},
         onEmailButtonClick = {},
         viewModel = viewModel

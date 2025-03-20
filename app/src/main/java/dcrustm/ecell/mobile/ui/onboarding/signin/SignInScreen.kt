@@ -56,7 +56,6 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import dcrustm.ecell.mobile.R
 import dcrustm.ecell.mobile.domain.model.EmailProviderUser
-import dcrustm.ecell.mobile.domain.model.User
 import dcrustm.ecell.mobile.domain.model.toUser
 import dcrustm.ecell.mobile.ui.onboarding.AuthViewModel
 import dcrustm.ecell.mobile.ui.theme.AppTheme
@@ -216,14 +215,6 @@ fun SignInScreen(
             modifier = Modifier.fillMaxWidth()
         ) {
             EmailBottomSheetContent { email, password, fullName ->
-
-                val user = EmailProviderUser(
-                    fullName = fullName,
-                    email = email,
-                    password = password
-                ).toUser()
-
-                viewModel.signUpWithGoogle(user)
                 showEmailBottomSheet = false
             }
         }

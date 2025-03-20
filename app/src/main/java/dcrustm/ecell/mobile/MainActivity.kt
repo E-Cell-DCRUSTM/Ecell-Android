@@ -9,7 +9,6 @@ import dagger.hilt.android.AndroidEntryPoint
 import dcrustm.ecell.mobile.domain.usecase.CheckOnBoardingCompletedUseCase
 import dcrustm.ecell.mobile.domain.usecase.SetOnBoardingCompleteUseCase
 import dcrustm.ecell.mobile.navigation.OnBoardingNavigation
-import dcrustm.ecell.mobile.navigation.RootApp
 import dcrustm.ecell.mobile.ui.theme.AppTheme
 import javax.inject.Inject
 

@@ -11,3 +11,4 @@ data class AuthSuccess(
 data class AuthError(
     val errorMessage: String
 ) : AuthResult()
+
