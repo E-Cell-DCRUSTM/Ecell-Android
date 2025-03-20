@@ -1,6 +1,6 @@
 package dcrustm.ecell.mobile.domain.dummy
 
-import dcrustm.ecell.mobile.data.local.user.UserEntity
+import dcrustm.ecell.mobile.data.local.profile.UserEntity
 
 interface UserRepository {
 

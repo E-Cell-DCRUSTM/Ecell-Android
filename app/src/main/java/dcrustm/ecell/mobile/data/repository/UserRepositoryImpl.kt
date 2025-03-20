@@ -1,7 +1,7 @@
 package dcrustm.ecell.mobile.data.repository
 
-import dcrustm.ecell.mobile.data.local.user.UserDao
-import dcrustm.ecell.mobile.data.local.user.UserEntity
+import dcrustm.ecell.mobile.data.local.profile.UserDao
+import dcrustm.ecell.mobile.data.local.profile.UserEntity
 import dcrustm.ecell.mobile.domain.dummy.UserRepository
 import javax.inject.Inject
 

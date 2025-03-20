@@ -1,14 +1,15 @@
 package dcrustm.ecell.mobile.di
 
 import android.content.Context
+import androidx.room.Database
 import androidx.room.Room
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
-import dcrustm.ecell.mobile.data.local.user.UserDao
-import dcrustm.ecell.mobile.data.local.user.UserDatabase
+import dcrustm.ecell.mobile.data.local.profile.ProfileDao
+import dcrustm.ecell.mobile.data.local.profile.ProfileDatabase
 import javax.inject.Singleton
 
 @Module
@@ -29,15 +30,15 @@ object DatabaseModule {
 
     @Provides
     @Singleton
-    fun provideUserDatabase(@ApplicationContext context: Context): UserDatabase {
-        return Room.databaseBuilder(context, UserDatabase::class.java, "app_database")
+    fun provideProfileDatabase(@ApplicationContext context: Context): ProfileDatabase {
+        return Room.databaseBuilder(context, ProfileDatabase::class.java, "app_database")
             .fallbackToDestructiveMigration()
             .build()
     }
 
     @Provides
-    fun provideUserDao(database: UserDatabase): UserDao {
-        return database.userDao()
+    fun provideUserDao(database: ProfileDatabase): ProfileDao {
+        return database.profileDao()
     }
 
 }
