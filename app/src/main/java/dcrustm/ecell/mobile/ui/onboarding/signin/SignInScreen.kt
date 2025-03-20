@@ -449,23 +449,22 @@ fun LoginGroupedTextFields(
 }
 
 
-
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EmailBottomSheetContent(
-    onEmailContinue: (fullName: String, email: String, password: String) -> Unit
+    onEmailContinue: () -> Unit
 ) {
-// Local state for full name, email, password and password visibility.
+    // Local state for full name, email, password and password visibility.
     var fullName by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
 
-// Standard email regex for validation.
+    // Standard email regex for validation.
     val emailRegex = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$".toRegex()
     val emailValid = email.isEmpty() || email.matches(emailRegex)
-// The form is valid only when all fields are non-empty and email passes regex.
+
+    // The form is valid only when all fields are non-empty and email passes regex.
     val isFormValid =
         fullName.isNotEmpty() && email.isNotEmpty() && email.matches(emailRegex) && password.isNotEmpty()
 
@@ -511,7 +510,7 @@ fun EmailBottomSheetContent(
 
         // Continue button enabled only when all fields are valid.
         Button(
-            onClick = { onEmailContinue(fullName, email, password) },
+            onClick = { onEmailContinue() },
             enabled = isFormValid,
             modifier = Modifier
                 .fillMaxWidth()
