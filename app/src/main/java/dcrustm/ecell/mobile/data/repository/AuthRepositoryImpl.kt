@@ -1,16 +1,14 @@
 package dcrustm.ecell.mobile.data.repository
 
 
-import android.content.Context
 import dcrustm.ecell.mobile.data.remote.model.AuthResponse
 import dcrustm.ecell.mobile.domain.auth.AuthError
 import dcrustm.ecell.mobile.domain.auth.AuthResult
 import dcrustm.ecell.mobile.domain.auth.AuthSuccess
 import dcrustm.ecell.mobile.domain.dummy.AuthRepository
-import dcrustm.ecell.mobile.domain.model.GoogleProviderUser
+import dcrustm.ecell.mobile.domain.dummy.ProfileRepository
 import dcrustm.ecell.mobile.domain.model.User
 import dcrustm.ecell.mobile.domain.model.toUserDto
-import dcrustm.ecell.mobile.domain.usecase.auth.GetGoogleIdUseCase
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.plugins.ClientRequestException
@@ -24,7 +22,7 @@ import javax.inject.Named
 
 class AuthRepositoryImpl @Inject constructor(
     private val client: HttpClient,
-    private val getGoogleIdUseCase: GetGoogleIdUseCase,
+    private val profileRepository: ProfileRepository,
     @Named("base_url") private val baseUrl: String
 ) : AuthRepository {
 
@@ -37,6 +35,9 @@ class AuthRepositoryImpl @Inject constructor(
                 setBody(user.toUserDto())
             }.body()
 
+            // Fetch the profile data and store it locally.
+            profileRepository.fetchAndSaveProfile(user.email)
+            println("Profile data fetched and stored locally!")
 
             println("Access Token: ${response.accessToken}")
             println("Refresh Token: ${response.refreshToken}")
@@ -70,6 +71,9 @@ class AuthRepositoryImpl @Inject constructor(
                 setBody(user.toUserDto())
             }.body()
 
+            // Fetch the profile data and store it locally.
+            profileRepository.fetchAndSaveProfile(user.email)
+            println("Profile data fetched and stored locally!")
 
             println("Access Token: ${response.accessToken}")
             println("Refresh Token: ${response.refreshToken}")
@@ -112,6 +116,10 @@ class AuthRepositoryImpl @Inject constructor(
                     )
                 )
             }.body()
+
+            // Fetch the profile data and store it locally.
+            profileRepository.fetchAndSaveProfile(user.email)
+            println("Profile data fetched and stored locally!")
 
             // If successful, print the received response and return AuthSuccess.
             println("Google SignIn Successful Response: $response")
@@ -171,8 +179,13 @@ class AuthRepositoryImpl @Inject constructor(
                 )
             }.body()
 
+            // Fetch the profile data and store it locally.
+            profileRepository.fetchAndSaveProfile(email)
+            println("Profile data fetched and stored locally!")
+
             // Assuming a successful response returns the tokens.
             println("Email/Password SignIn Successful Response: $response")
+
             AuthSuccess(response.accessToken, response.refreshToken)
 
         } catch (e: ClientRequestException) {
@@ -204,4 +217,5 @@ class AuthRepositoryImpl @Inject constructor(
             AuthError("Network error: ${e.message}")
         }
     }
+
 }

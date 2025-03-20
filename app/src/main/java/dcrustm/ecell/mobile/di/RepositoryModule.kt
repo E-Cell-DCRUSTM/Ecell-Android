@@ -4,8 +4,8 @@ import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
-import dcrustm.ecell.mobile.data.repository.UserRepositoryImpl
-import dcrustm.ecell.mobile.domain.dummy.UserRepository
+import dcrustm.ecell.mobile.data.repository.ProfileRepositoryImpl
+import dcrustm.ecell.mobile.domain.dummy.ProfileRepository
 import javax.inject.Singleton
 
 @Module
@@ -14,8 +14,8 @@ abstract class RepositoryModule {
 
     @Binds
     @Singleton
-    abstract fun bindUserRepository(
-        userRepositoryImpl: UserRepositoryImpl
-    ): UserRepository
+    abstract fun bindProfileRepository(
+        profileRepositoryImpl: ProfileRepositoryImpl
+    ): ProfileRepository
 
 }
