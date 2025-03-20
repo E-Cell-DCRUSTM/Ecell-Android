@@ -92,4 +92,116 @@ class AuthRepositoryImpl @Inject constructor(
             AuthError("Network error: ${e.message}")
         }
     }
+
+    override suspend fun googleSignIn(user: User): AuthResult {
+
+        return try {
+
+            // Make a POST request to /api/users/login with a JSON body containing only the email.
+            val response: AuthResponse = client.post("$baseUrl/api/users/login") {
+
+                url {
+                    parameters.append("provider", "google")
+                }
+
+                contentType(ContentType.Application.Json)
+                setBody(
+                    mapOf(
+                        "email" to user.email,
+                        "oauthGoogle" to user.oauthGoogle
+                    )
+                )
+            }.body()
+
+            // If successful, print the received response and return AuthSuccess.
+            println("Google SignIn Successful Response: $response")
+            AuthSuccess(response.accessToken, response.refreshToken)
+
+        } catch (e: ClientRequestException) {
+
+            // Handle client errors: if the response status is HTTP 204, user was not found.
+            when (e.response.status) {
+                HttpStatusCode.Unauthorized -> {
+                    println("Google oauth id is not matching with the database")
+                    AuthError("Password doesn't match for the given google id")
+                }
+
+                HttpStatusCode.BadRequest -> {
+                    println("Bad request to the server")
+                    AuthError("Bad request, looks like 'provider' query is missing.")
+                }
+
+                HttpStatusCode.NotFound -> {
+                    println("User not found")
+                    AuthError("User not found")
+                }
+
+                else -> {
+                    println("Client error: ${e.message}")
+                    AuthError("Client error: ${e.message}")
+                }
+            }
+
+
+
+        } catch (e: Exception) {
+
+            // Handle network errors or any other exceptions.
+            println("Network error: ${e.message}")
+            AuthError("Network error: ${e.message}")
+        }
+    }
+
+    override suspend fun emailPasswordSignIn(email: String, password: String): AuthResult {
+        return try {
+
+            // POST to /api/users/login with both email and password in the request body.
+            val response: AuthResponse = client.post("$baseUrl/api/users/login") {
+
+                url {
+                    parameters.append("provider", "customemail")
+                }
+
+                contentType(ContentType.Application.Json)
+                setBody(
+                    mapOf(
+                        "email" to email,
+                        "password" to password
+                    )
+                )
+            }.body()
+
+            // Assuming a successful response returns the tokens.
+            println("Email/Password SignIn Successful Response: $response")
+            AuthSuccess(response.accessToken, response.refreshToken)
+
+        } catch (e: ClientRequestException) {
+
+            // Handle specific status codes from your backend.
+            when (e.response.status) {
+                HttpStatusCode.Unauthorized -> {
+                    println("Password doesn't match for the given email id")
+                    AuthError("Password doesn't match for the given email id")
+                }
+
+                HttpStatusCode.BadRequest -> {
+                    println("Bad request to the server")
+                    AuthError("Bad request, looks like 'provider' query is missing.")
+                }
+
+                HttpStatusCode.NotFound -> {
+                    println("User not found")
+                    AuthError("User not found")
+                }
+
+                else -> {
+                    println("Client error: ${e.message}")
+                    AuthError("Client error: ${e.message}")
+                }
+            }
+        } catch (e: Exception) {
+            println("Network error: ${e.message}")
+            AuthError("Network error: ${e.message}")
+        }
+    }
 }

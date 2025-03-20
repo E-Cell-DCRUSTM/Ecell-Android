@@ -9,7 +9,7 @@ interface AuthRepository {
 
     suspend fun googleSignUp(user: User): AuthResult
 
-    suspend fun emailSignIn(user: User): AuthResult
+    suspend fun emailPasswordSignIn(email: String, password: String): AuthResult
 
     suspend fun googleSignIn(user: User): AuthResult
 

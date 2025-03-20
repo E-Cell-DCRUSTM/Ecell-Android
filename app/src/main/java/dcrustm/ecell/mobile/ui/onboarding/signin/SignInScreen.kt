@@ -56,18 +56,19 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import dcrustm.ecell.mobile.R
 import dcrustm.ecell.mobile.domain.model.EmailProviderUser
+import dcrustm.ecell.mobile.domain.model.User
 import dcrustm.ecell.mobile.domain.model.toUser
-import dcrustm.ecell.mobile.ui.onboarding.AuthViewModel
 import dcrustm.ecell.mobile.ui.theme.AppTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SignInScreen(
     modifier: Modifier = Modifier,
-    onGoogleButtonClick: () -> Unit,
-    onEmailButtonClick: () -> Unit,
-    onAccountAlreadyClick: () -> Unit,
-    viewModel: AuthViewModel
+    onGoogleSignupClick: () -> Unit,
+    onGoogleLoginClick: () -> Unit,
+    onEmailSignupClick: (user: User) -> Unit,
+    onEmailLoginClick: (email: String, password: String) -> Unit,
+
 ) {
 
     // State to control the visibility of the email bottom sheet
@@ -127,7 +128,7 @@ fun SignInScreen(
 
         // Google sign up/ login button
         Button(
-            onClick = onGoogleButtonClick,
+            onClick = onGoogleSignupClick,
             colors = ButtonDefaults.buttonColors(
                 containerColor = Color.Black
             ),
@@ -160,7 +161,6 @@ fun SignInScreen(
 
         Button(
             onClick = {
-                onEmailButtonClick()
                 showEmailBottomSheet = true
             },
             colors = ButtonDefaults.buttonColors(
@@ -200,7 +200,6 @@ fun SignInScreen(
             modifier = Modifier
                 .align(Alignment.CenterHorizontally)
                 .clickable {
-                    onAccountAlreadyClick()
                     showLoginBottomSheet = true
                 }
         )
@@ -215,6 +214,14 @@ fun SignInScreen(
             modifier = Modifier.fillMaxWidth()
         ) {
             EmailBottomSheetContent { email, password, fullName ->
+
+                val userData = EmailProviderUser(
+                    email = email,
+                    password = password,
+                    fullName = fullName
+                ).toUser()
+
+                onEmailSignupClick(userData)
                 showEmailBottomSheet = false
             }
         }
@@ -229,11 +236,11 @@ fun SignInScreen(
         ) {
             LoginBottomSheetContent(
                 onLogin = { email, password ->
-                    dummyOnLogin(email, password)
+                    onEmailLoginClick(email, password)
                     showLoginBottomSheet = false
                 },
                 onGoogleClick = {
-                    dummyOnGoogleLogin()
+                    onGoogleLoginClick()
                     showLoginBottomSheet = false
                 }
             )
@@ -659,20 +666,3 @@ fun CustomSingleInputField(
     }
 }
 
-
-
-
-
-
-@Preview(showSystemUi = true, showBackground = true)
-@Composable
-private fun SignInScreenPreview() {
-    AppTheme {
-        SignInScreen(
-            onGoogleButtonClick = {},
-            onEmailButtonClick = {},
-            onAccountAlreadyClick = {},
-            viewModel = hiltViewModel()
-        )
-    }
-}
