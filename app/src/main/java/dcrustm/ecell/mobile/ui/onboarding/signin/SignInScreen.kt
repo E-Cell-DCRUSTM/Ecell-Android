@@ -53,7 +53,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import dcrustm.ecell.mobile.R
+import dcrustm.ecell.mobile.domain.model.EmailProviderUser
+import dcrustm.ecell.mobile.domain.model.User
+import dcrustm.ecell.mobile.domain.model.toUser
+import dcrustm.ecell.mobile.ui.onboarding.AuthViewModel
 import dcrustm.ecell.mobile.ui.theme.AppTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -62,7 +67,8 @@ fun SignInScreen(
     modifier: Modifier = Modifier,
     onGoogleButtonClick: () -> Unit,
     onEmailButtonClick: () -> Unit,
-    onAccountAlreadyClick: () -> Unit
+    onAccountAlreadyClick: () -> Unit,
+    viewModel: AuthViewModel
 ) {
 
     // State to control the visibility of the email bottom sheet
@@ -202,7 +208,7 @@ fun SignInScreen(
 
     }
 
-    // ModalBottomSheet that shows when the email sign-in button is clicked.
+    // ModalBottomSheet that shows when the email sign-up button is clicked.
     if (showEmailBottomSheet) {
         ModalBottomSheet(
             onDismissRequest = { showEmailBottomSheet = false },
@@ -210,7 +216,14 @@ fun SignInScreen(
             modifier = Modifier.fillMaxWidth()
         ) {
             EmailBottomSheetContent { email, password, fullName ->
-                dummyOnEmailContinue(email, password, fullName)
+
+                val user = EmailProviderUser(
+                    fullName = fullName,
+                    email = email,
+                    password = password
+                ).toUser()
+
+                viewModel.signUpWithGoogle(user)
                 showEmailBottomSheet = false
             }
         }
@@ -452,8 +465,9 @@ fun LoginGroupedTextFields(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EmailBottomSheetContent(
-    onEmailContinue: () -> Unit
+    onEmailContinue: (email: String, password: String, fullName: String) -> Unit
 ) {
+
     // Local state for full name, email, password and password visibility.
     var fullName by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
@@ -510,7 +524,7 @@ fun EmailBottomSheetContent(
 
         // Continue button enabled only when all fields are valid.
         Button(
-            onClick = { onEmailContinue() },
+            onClick = { onEmailContinue(email, password, fullName) },
             enabled = isFormValid,
             modifier = Modifier
                 .fillMaxWidth()
@@ -666,7 +680,8 @@ private fun SignInScreenPreview() {
         SignInScreen(
             onGoogleButtonClick = {},
             onEmailButtonClick = {},
-            onAccountAlreadyClick = {}
+            onAccountAlreadyClick = {},
+            viewModel = hiltViewModel()
         )
     }
 }

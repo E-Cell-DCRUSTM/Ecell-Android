@@ -70,6 +70,7 @@ dependencies {
     implementation("com.google.dagger:hilt-android:2.55")
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
     implementation(libs.androidx.storage)
+    implementation(libs.firebase.crashlytics.buildtools)
     ksp("com.google.dagger:hilt-compiler:2.55")
     ksp("androidx.hilt:hilt-compiler:1.2.0")
 
@@ -110,6 +111,7 @@ dependencies {
     // Pager library
     implementation("com.google.accompanist:accompanist-pager:0.22.0-rc")
     implementation("com.google.accompanist:accompanist-pager-indicators:0.22.0-rc")
+
     // For blur effect
     implementation("com.google.accompanist:accompanist-systemuicontroller:0.28.0")
 
@@ -124,6 +126,22 @@ dependencies {
     implementation("androidx.credentials:credentials:1.3.0")
     implementation("androidx.credentials:credentials-play-services-auth:1.3.0")
     implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
+
+    // Ktor dependencies
+    // Ktor client core dependency
+    implementation("io.ktor:ktor-client-core:3.1.0")
+
+    // Android engine dependency to actually process network requests on Android
+    implementation("io.ktor:ktor-client-android:3.1.0")
+
+    // Content Negotiation plugin for JSON serialization
+    implementation("io.ktor:ktor-client-content-negotiation:3.1.0")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:3.1.0")
+
+    // Optional: Logging dependency for debugging network calls
+    implementation("io.ktor:ktor-client-logging:3.1.0")
+
+
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

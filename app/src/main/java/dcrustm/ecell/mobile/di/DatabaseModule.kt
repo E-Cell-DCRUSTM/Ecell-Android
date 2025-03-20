@@ -7,10 +7,6 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
-import dcrustm.ecell.mobile.data.local.quiz.QuizDao
-import dcrustm.ecell.mobile.data.local.quiz.QuizDatabase
-import dcrustm.ecell.mobile.data.local.quiz.QuizRepository
-import dcrustm.ecell.mobile.data.local.quiz.QuizRepositoryImpl
 import dcrustm.ecell.mobile.data.local.user.UserDao
 import dcrustm.ecell.mobile.data.local.user.UserDatabase
 import javax.inject.Singleton
@@ -19,17 +15,17 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object DatabaseModule {
 
-    @Provides
-    @Singleton
-    fun provideQuizDatabase(@ApplicationContext context: Context): QuizDatabase =
-        Room.databaseBuilder(context, QuizDatabase::class.java, "quiz_database").build()
-
-    @Provides
-    fun provideQuizDao(database: QuizDatabase): QuizDao = database.quizDao()
-
-    @Provides
-    @Singleton
-    fun provideQuizRepository(dao: QuizDao): QuizRepository = QuizRepositoryImpl(dao)
+//    @Provides
+//    @Singleton
+//    fun provideQuizDatabase(@ApplicationContext context: Context): QuizDatabase =
+//        Room.databaseBuilder(context, QuizDatabase::class.java, "quiz_database").build()
+//
+//    @Provides
+//    fun provideQuizDao(database: QuizDatabase): QuizDao = database.quizDao()
+//
+//    @Provides
+//    @Singleton
+//    fun provideQuizRepository(dao: QuizDao): QuizRepository = QuizRepositoryImpl(dao)
 
     @Provides
     @Singleton

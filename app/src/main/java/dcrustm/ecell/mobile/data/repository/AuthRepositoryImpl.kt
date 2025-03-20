@@ -1,75 +1,62 @@
 package dcrustm.ecell.mobile.data.repository
 
-import android.app.Activity
-import androidx.credentials.CredentialManager
-import androidx.credentials.GetCredentialRequest
-import com.google.android.libraries.identity.googleid.GetGoogleIdOption
-import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.GoogleAuthProvider
-import dcrustm.ecell.mobile.data.model.toDomainUser
+
+import dcrustm.ecell.mobile.data.remote.model.AuthResponse
+import dcrustm.ecell.mobile.domain.auth.AuthError
+import dcrustm.ecell.mobile.domain.auth.AuthResult
+import dcrustm.ecell.mobile.domain.auth.AuthSuccess
 import dcrustm.ecell.mobile.domain.dummy.AuthRepository
 import dcrustm.ecell.mobile.domain.model.User
-import kotlinx.coroutines.tasks.await
+import dcrustm.ecell.mobile.domain.model.toUserDto
+import io.ktor.client.HttpClient
+import io.ktor.client.call.body
+import io.ktor.client.plugins.ClientRequestException
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
+import io.ktor.client.statement.HttpResponse
+import io.ktor.client.utils.EmptyContent.contentType
+import io.ktor.http.ContentType
+import io.ktor.http.HttpStatusCode
+import io.ktor.http.contentType
+import kotlinx.serialization.json.Json
 import javax.inject.Inject
+import javax.inject.Named
 
 class AuthRepositoryImpl @Inject constructor(
-    private val auth: FirebaseAuth
+    private val client: HttpClient,
+    @Named("base_url") private val baseUrl: String
 ) : AuthRepository {
 
-    override suspend fun signInWithGoogle(credentialManager: CredentialManager, activity: Activity): Result<User> {
+    override suspend fun emailSignUp(user: User): AuthResult {
+
+        println(user)
+
         return try {
-            // Build the Google ID token option
-            val googleIdOption = GetGoogleIdOption.Builder()
-                .setAutoSelectEnabled(false)
-                .setFilterByAuthorizedAccounts(false)
-                .setServerClientId("532056230783-tqdvcsfp3f5liro17mriddd1k94jiqjq.apps.googleusercontent.com")
-                .build()
+            println(user)
+            val response: AuthResponse = client.post("$baseUrl/api/users") {
+                contentType(ContentType.Application.Json)
+                // Ktor will automatically convert the User object into JSON (thanks to the json serializer)
+                setBody(user.toUserDto())
+            }.body()
+            // For now, we simply print out the tokens on success.
+            println("Access Token: ${response.accessToken}")
+            println("Refresh Token: ${response.refreshToken}")
+            AuthSuccess(response.accessToken, response.refreshToken)
 
-            // Create the credential request
-            val request = GetCredentialRequest.Builder()
-                .addCredentialOption(googleIdOption)
-                .build()
-
-            // Display the Google sign-in dialog and get a credential response
-            val result = credentialManager.getCredential(request = request, context = activity)
-
-            // Extract the Google ID token from the response
-            val googleIdTokenCredential =
-                GoogleIdTokenCredential.createFrom(result.credential.data)
-            val idToken = googleIdTokenCredential.idToken
-                ?: throw Exception("No ID Token received from Credential Manager")
-
-            // Exchange the Google ID token for a Firebase credential
-            val firebaseCredential = GoogleAuthProvider.getCredential(idToken, null)
-
-            // Sign in with Firebase Authentication using the credential
-            val authResult = auth.signInWithCredential(firebaseCredential).await()
-
-            // Convert the Firebase user to your domain user model
-            authResult.user?.let { firebaseUser ->
-                Result.success(firebaseUser.toDomainUser())
-            } ?: Result.failure(Exception("Firebase user is null"))
+        } catch (e: ClientRequestException) {
+            // This exception is thrown for 4xx responses.
+            if (e.response.status == HttpStatusCode.Conflict) {
+                println("User already exists, consider login instead")
+                AuthError("User already exists, consider login instead")
+            } else {
+                println("Client error: ${e.message}")
+                AuthError("Client error: ${e.message}")
+            }
         } catch (e: Exception) {
-            Result.failure(e)
+            // Handle network errors and any other exceptions
+            println("Network error: ${e.message}")
+            AuthError("Network error: ${e.message}")
         }
-    }
-
-    override suspend fun signOut(): Result<Unit> {
-        return try {
-            auth.signOut()
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
-
-    override fun getCurrentUser(): User? {
-        return auth.currentUser?.toDomainUser()
-    }
-
-    override fun isUserAuthenticated(): Boolean {
-        return auth.currentUser != null
     }
 
 }
