@@ -8,13 +8,13 @@ import androidx.room.Query
 @Dao
 interface ProfileDao {
 
-    @Query("SELECT * FROM user_table LIMIT 1")
+    @Query("SELECT * FROM profile_table LIMIT 1")
     suspend fun getUser(): ProfileEntity?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertUser(user: ProfileEntity)
 
-    @Query("DELETE FROM user_table")
+    @Query("DELETE FROM profile_table")
     suspend fun deleteAllUsers()
 
 }

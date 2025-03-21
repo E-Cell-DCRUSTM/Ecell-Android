@@ -23,6 +23,8 @@ fun ProfileResponseDTO.toEntity(): ProfileEntity {
         lastName = lastName,
         email = email,
         photoUrl = photoUrl,
-        role = role
+        role = role,
+        accessToken = "",
+        refreshToken = ""
     )
 }

@@ -3,7 +3,7 @@ package dcrustm.ecell.mobile.data.local.profile
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "user_table")
+@Entity(tableName = "profile_table")
 data class ProfileEntity(
 
     @PrimaryKey val id: Int = 0,
@@ -11,6 +11,9 @@ data class ProfileEntity(
     val lastName: String,
     val email: String,
     val photoUrl: String?,
-    val role: String
+    val role: String,
+
+    val accessToken: String,
+    val refreshToken: String
 
 )

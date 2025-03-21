@@ -17,7 +17,6 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.google.accompanist.navigation.animation.AnimatedNavHost
-import com.google.accompanist.navigation.animation.rememberAnimatedNavController
 import dcrustm.ecell.mobile.ui.about.AboutUsScreen
 
 @OptIn(ExperimentalAnimationApi::class)

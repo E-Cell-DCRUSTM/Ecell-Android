@@ -42,4 +42,27 @@ class ProfileRepositoryImpl @Inject constructor(
         return profileDao.getUser()
     }
 
+    override suspend fun getAccessToken(): String {
+
+        // Retrieves the accessToken from the local profile or returns an empty string if not found
+        return profileDao.getUser()?.accessToken ?: ""
+    }
+
+    override suspend fun getRefreshToken(): String {
+
+        // Retrieves the refreshToken from the local profile or returns an empty string if not found
+        return profileDao.getUser()?.refreshToken ?: ""
+    }
+
+    override suspend fun updateToken(accessToken: String, refreshToken: String) {
+
+        // Get the current profile, update its token fields, and reinsert it in the database.
+        profileDao.getUser()?.let { currentProfile ->
+            val updatedProfile = currentProfile.copy(
+                accessToken = accessToken,
+                refreshToken = refreshToken
+            )
+            profileDao.insertUser(updatedProfile)
+        }
+    }
 }

@@ -37,6 +37,7 @@ class AuthRepositoryImpl @Inject constructor(
 
             // Fetch the profile data and store it locally.
             profileRepository.fetchAndSaveProfile(user.email)
+            profileRepository.updateToken(response.accessToken, response.refreshToken)
             println("Profile data fetched and stored locally!")
 
             println("Access Token: ${response.accessToken}")
@@ -73,6 +74,7 @@ class AuthRepositoryImpl @Inject constructor(
 
             // Fetch the profile data and store it locally.
             profileRepository.fetchAndSaveProfile(user.email)
+            profileRepository.updateToken(response.accessToken, response.refreshToken)
             println("Profile data fetched and stored locally!")
 
             println("Access Token: ${response.accessToken}")
@@ -119,6 +121,7 @@ class AuthRepositoryImpl @Inject constructor(
 
             // Fetch the profile data and store it locally.
             profileRepository.fetchAndSaveProfile(user.email)
+            profileRepository.updateToken(response.accessToken, response.refreshToken)
             println("Profile data fetched and stored locally!")
 
             // If successful, print the received response and return AuthSuccess.
@@ -181,6 +184,7 @@ class AuthRepositoryImpl @Inject constructor(
 
             // Fetch the profile data and store it locally.
             profileRepository.fetchAndSaveProfile(email)
+            profileRepository.updateToken(response.accessToken, response.refreshToken)
             println("Profile data fetched and stored locally!")
 
             // Assuming a successful response returns the tokens.

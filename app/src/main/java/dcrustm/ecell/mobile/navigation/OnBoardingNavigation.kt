@@ -2,12 +2,15 @@ package dcrustm.ecell.mobile.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.credentials.CredentialManager
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import dcrustm.ecell.mobile.domain.usecase.SetOnBoardingCompleteUseCase
 import dcrustm.ecell.mobile.ui.onboarding.signin.SignInApp
 import dcrustm.ecell.mobile.ui.onboarding.welcome.WelcomeApp
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.Serializable
 
 
@@ -20,7 +23,7 @@ sealed class OnBoardingRoutes {
     data object SignInAppRoute: OnBoardingRoutes()
 
     @Serializable
-    data object MainAppRoute: OnBoardingRoutes()
+    data object RootAppRoute: OnBoardingRoutes()
 
 }
 
@@ -32,6 +35,7 @@ sealed class OnBoardingRoutes {
 fun OnBoardingNavigation(
     navController: NavHostController = rememberNavController(),
     credentialManager: CredentialManager,
+//    setOnBoardingCompleteUseCase: SetOnBoardingCompleteUseCase,
     startDestination: Any = OnBoardingRoutes.WelcomeAppRoute
 ) {
     NavHost(
@@ -49,12 +53,22 @@ fun OnBoardingNavigation(
 
         composable<OnBoardingRoutes.SignInAppRoute> {
             SignInApp(
-                credentialManager = credentialManager
+                credentialManager = credentialManager,
+                onSuccessfulLoginEvent = {
+                    navController.navigate(OnBoardingRoutes.RootAppRoute) {
+                        popUpTo(OnBoardingRoutes.SignInAppRoute) {
+                            inclusive = true
+                        }
+                    }
+                    runBlocking {
+//                        setOnBoardingCompleteUseCase(true)
+                    }
+                }
             )
         }
 
-        composable<OnBoardingRoutes.MainAppRoute> {
-
+        composable<OnBoardingRoutes.RootAppRoute> {
+            RootApp()
         }
 
     }

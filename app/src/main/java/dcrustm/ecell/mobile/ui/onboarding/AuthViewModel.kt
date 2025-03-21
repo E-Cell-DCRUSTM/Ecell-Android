@@ -25,6 +25,9 @@ class AuthViewModel @Inject constructor(
     private val googleLoginUseCase: GoogleLoginUseCase
 ) : ViewModel() {
 
+    private var _isLoginSuccessful = MutableStateFlow(false)
+    val isLoginSuccessful: StateFlow<Boolean> = _isLoginSuccessful
+
     private val _authState = MutableStateFlow<AuthState>(AuthState.Initial)
     val authState: StateFlow<AuthState> = _authState
 
