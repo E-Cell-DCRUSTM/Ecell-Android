@@ -5,6 +5,8 @@ import androidx.credentials.CredentialManager
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dcrustm.ecell.mobile.domain.auth.AuthError
+import dcrustm.ecell.mobile.domain.auth.AuthSuccess
 import dcrustm.ecell.mobile.domain.model.User
 import dcrustm.ecell.mobile.domain.usecase.auth.EmailLoginUseCase
 import dcrustm.ecell.mobile.domain.usecase.auth.EmailSignUpUseCase
@@ -33,22 +35,66 @@ class AuthViewModel @Inject constructor(
 
     // Function to signup with google all in one and return the access token.
     fun signUpWithGoogle(credentialManager: CredentialManager, context: Activity) = viewModelScope.launch {
-        googleSignUpUseCase(credentialManager, context)
+        _authState.value = AuthState.Loading
+        val result = googleSignUpUseCase(credentialManager, context)
+        when(result) {
+            is AuthSuccess -> {
+                _authState.value = AuthState.Authenticated(result)
+                _isLoginSuccessful.value = true
+            }
+            is AuthError -> {
+                _authState.value = AuthState.Error(result.errorMessage)
+                _isLoginSuccessful.value = false
+            }
+        }
     }
 
     // Function to login with google all in one and return the access token.
     fun loginWithGoogle(credentialManager: CredentialManager, context: Activity) = viewModelScope.launch {
-        googleLoginUseCase(credentialManager, context)
+        _authState.value = AuthState.Loading
+        val result = googleLoginUseCase(credentialManager, context)
+        when(result) {
+            is AuthSuccess -> {
+                _authState.value = AuthState.Authenticated(result)
+                _isLoginSuccessful.value = true
+            }
+            is AuthError -> {
+                _authState.value = AuthState.Error(result.errorMessage)
+                _isLoginSuccessful.value = false
+            }
+        }
     }
 
     // Function to signup with email all in one and return the access token.
     fun signUpWithEmail(user: User) = viewModelScope.launch {
-        emailSignUpUseCase(user)
+        _authState.value = AuthState.Loading
+        val result = emailSignUpUseCase(user)
+        when(result) {
+            is AuthSuccess -> {
+                _authState.value = AuthState.Authenticated(result)
+                _isLoginSuccessful.value = true
+            }
+            is AuthError -> {
+                _authState.value = AuthState.Error(result.errorMessage)
+                _isLoginSuccessful.value = false
+            }
+        }
     }
 
     // Function to login with Email Id all in one and return the access token.
     fun loginWithEmail(email: String, password: String) = viewModelScope.launch {
-        emailLoginUseCase(email, password)
+        _authState.value = AuthState.Loading
+        val result = emailLoginUseCase(email, password)
+        when(result) {
+            is AuthSuccess -> {
+                _authState.value = AuthState.Authenticated(result)
+                _isLoginSuccessful.value = true
+            }
+            is AuthError -> {
+                _authState.value = AuthState.Error(result.errorMessage)
+                _isLoginSuccessful.value = false
+            }
+        }
     }
 
     // Function to fetch google details, left for debugging.
@@ -61,7 +107,7 @@ class AuthViewModel @Inject constructor(
 sealed class AuthState {
     object Initial : AuthState()
     object Loading : AuthState()
-    data class Authenticated(val user: User) : AuthState()
+    data class Authenticated(val authData: AuthSuccess) : AuthState()
     object Unauthenticated : AuthState()
     data class Error(val message: String) : AuthState()
 }
