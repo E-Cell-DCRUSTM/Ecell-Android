@@ -93,47 +93,58 @@ import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
 
 @Composable
 fun GalleryScreen(viewModel: GalleryViewModel = hiltViewModel()) {
+// Observe images and refresh state from the ViewModel.
     val images by viewModel.imagesFlow.collectAsState()
     val refreshState by viewModel.refreshState.collectAsState()
 
-    // Trigger the image fetch when the UI is composed—for testing purposes.
+// Trigger image fetch on launch.
     LaunchedEffect(Unit) {
         viewModel.refreshFull()
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        when (refreshState) {
-            is RefreshState.Loading -> {
-                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-            }
-            is RefreshState.Error -> {
-                Text(
-                    text = (refreshState as RefreshState.Error).message,
-                    color = Color.Red,
-                    modifier = Modifier.align(Alignment.Center)
-                )
-            }
-            else -> {
-                // Use LazyVerticalStaggeredGrid to arrange images in two columns with staggered heights.
-                LazyVerticalStaggeredGrid(
-                    columns = StaggeredGridCells.Fixed(2),
-                    contentPadding = PaddingValues(8.dp),
-                    verticalItemSpacing = 8.dp,
-                    horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)
-                ) {
-                    items(images, key = { it.id }) { image ->
-                        GalleryImageItem(imageUrl = image.imageUrl)
+// Create swipe-refresh state using Accompanist.
+    val isRefreshing = refreshState is RefreshState.Loading
+    val swipeRefreshState = rememberSwipeRefreshState(isRefreshing = isRefreshing)
+
+    SwipeRefresh(
+        state = swipeRefreshState,
+        onRefresh = { viewModel.refreshFull() },
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            when (refreshState) {
+                is RefreshState.Error -> {
+                    Text(
+                        text = (refreshState as RefreshState.Error).message,
+                        color = Color.Red,
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                }
+                else -> {
+                    // Use LazyVerticalStaggeredGrid to display images with mixed aspect ratios.
+                    LazyVerticalStaggeredGrid(
+                        columns = StaggeredGridCells.Fixed(2),
+                        contentPadding = PaddingValues(8.dp),
+                        verticalItemSpacing = 8.dp,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(images, key = { it.id }) { image ->
+                            GalleryImageItem(imageUrl = image.imageUrl)
+                        }
+                    }
+                    // In case the grid is empty (first load), show a loading indicator.
+                    if (images.isEmpty() && isRefreshing) {
+                        CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                     }
                 }
             }
         }
     }
+
 }
-
-
 @Composable
 fun GalleryImageItem(imageUrl: String) {
-    // Use Coil's SubcomposeAsyncImage to load the image from the network.
+// Use Coil's SubcomposeAsyncImage to load the image.
+// When loaded successfully, the item's intrinsic aspect ratio is used.
     SubcomposeAsyncImage(
         model = imageUrl,
         contentDescription = null,
@@ -144,7 +155,7 @@ fun GalleryImageItem(imageUrl: String) {
     ) {
         when (val state = painter.state) {
             is AsyncImagePainter.State.Loading -> {
-                // Display a loading placeholder with a 1:1 aspect ratio.
+// Display a loading placeholder with a default aspect ratio.
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -155,34 +166,32 @@ fun GalleryImageItem(imageUrl: String) {
                 }
             }
             is AsyncImagePainter.State.Error -> {
-                // Display a placeholder with an error message.
+// Display an error placeholder.
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .aspectRatio(1f),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(text = "Error", color = Color.Red)
+                    Text("Error", color = Color.Red)
                 }
             }
             is AsyncImagePainter.State.Success -> {
-                // On successful load, compute the intrinsic aspect ratio.
+// Compute and apply the intrinsic aspect ratio.
                 val intrinsicSize = painter.intrinsicSize
                 val aspectRatio = if (intrinsicSize.height > 0f) {
                     intrinsicSize.width / intrinsicSize.height
                 } else 1f
-
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .aspectRatio(aspectRatio)
                 ) {
-                    // Use explicit receiver to call SubcomposeAsyncImageContent.
                     this@SubcomposeAsyncImage.SubcomposeAsyncImageContent()
                 }
             }
             else -> {
-                // Fallback placeholder.
+// Fallback placeholder.
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
