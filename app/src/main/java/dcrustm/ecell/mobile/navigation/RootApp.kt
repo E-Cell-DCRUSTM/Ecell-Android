@@ -4,20 +4,12 @@ import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.google.accompanist.navigation.animation.AnimatedNavHost
 import dcrustm.ecell.mobile.ui.about.AboutUsScreen
+import dcrustm.ecell.mobile.ui.profile.ProfileScreen
 
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
@@ -33,6 +25,7 @@ fun RootApp() {
         composable(route = RootScreen.Main.route) {
             MainScreen(rootNavController = rootNavController)
         }
+
         // Profile route: full screen modal with custom transitions.
         composable(
             route = RootScreen.Profile.route,
@@ -103,22 +96,22 @@ fun RootApp() {
 // Dummy profile screen for now
 // TODO: Implement real Profile Screen asap.
 
-@Composable
-fun ProfileScreen(onDismiss: () -> Unit) {
-    Surface(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-    ) {
-        Column {
-            Text(
-                text = "Profile Screen",
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(bottom = 16.dp)
-            )
-            Button(onClick = onDismiss) {
-                Text("Close")
-            }
-        }
-    }
-}
+//@Composable
+//fun ProfileScreen(onDismiss: () -> Unit) {
+//    Surface(
+//        modifier = Modifier
+//            .fillMaxSize()
+//            .padding(16.dp)
+//    ) {
+//        Column {
+//            Text(
+//                text = "Profile Screen",
+//                style = MaterialTheme.typography.titleLarge,
+//                modifier = Modifier.padding(bottom = 16.dp)
+//            )
+//            Button(onClick = onDismiss) {
+//                Text("Close")
+//            }
+//        }
+//    }
+//}

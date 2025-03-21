@@ -1,15 +1,20 @@
 package dcrustm.ecell.mobile.di
 
 import android.content.Context
-import androidx.room.Database
 import androidx.room.Room
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import dcrustm.ecell.mobile.data.local.image.ImageDao
+import dcrustm.ecell.mobile.data.local.image.ImageDatabase
+import dcrustm.ecell.mobile.data.local.image.ImageMetadataDao
 import dcrustm.ecell.mobile.data.local.profile.ProfileDao
 import dcrustm.ecell.mobile.data.local.profile.ProfileDatabase
+import dcrustm.ecell.mobile.data.remote.image.ImagesApiService
+import dcrustm.ecell.mobile.data.repository.ImageRepositoryImpl
+import dcrustm.ecell.mobile.domain.dummy.ImageRepository
 import javax.inject.Singleton
 
 @Module
@@ -34,6 +39,30 @@ object DatabaseModule {
         return Room.databaseBuilder(context, ProfileDatabase::class.java, "app_database")
             .fallbackToDestructiveMigration()
             .build()
+    }
+
+    @Provides
+    @Singleton
+    fun provideImageDatabase(@ApplicationContext context: Context): ImageDatabase =
+        Room.databaseBuilder(context, ImageDatabase::class.java, "images_db")
+            .fallbackToDestructiveMigration()
+            .build()
+
+    @Provides
+    fun provideImageDao(database: ImageDatabase): ImageDao = database.imageDao()
+
+    @Provides
+    fun provideImageMetadataDao(database: ImageDatabase): ImageMetadataDao =
+        database.metadataDao()
+
+    @Provides
+    @Singleton
+    fun provideImageRepository(
+        imageDao: ImageDao,
+        metadataDao: ImageMetadataDao,
+        apiService: ImagesApiService
+    ): ImageRepository {
+        return ImageRepositoryImpl(imageDao, metadataDao, apiService)
     }
 
     @Provides

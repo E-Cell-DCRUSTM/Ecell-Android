@@ -141,6 +141,9 @@ dependencies {
     // Optional: Logging dependency for debugging network calls
     implementation("io.ktor:ktor-client-logging:3.1.0")
 
+    implementation("io.coil-kt:coil-compose:2.6.0")
+    implementation("com.google.accompanist:accompanist-swiperefresh:0.28.0")
+
 
 
     testImplementation(libs.junit)
