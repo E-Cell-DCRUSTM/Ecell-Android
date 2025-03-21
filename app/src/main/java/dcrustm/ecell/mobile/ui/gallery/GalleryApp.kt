@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -141,10 +142,12 @@ fun GalleryScreen(viewModel: GalleryViewModel = hiltViewModel()) {
     }
 
 }
+
 @Composable
 fun GalleryImageItem(imageUrl: String) {
 // Use Coil's SubcomposeAsyncImage to load the image.
-// When loaded successfully, the item's intrinsic aspect ratio is used.
+// When loaded successfully, use the intrinsic aspect ratio.
+// If the image fails to load (Error state), show nothing.
     SubcomposeAsyncImage(
         model = imageUrl,
         contentDescription = null,
@@ -155,7 +158,7 @@ fun GalleryImageItem(imageUrl: String) {
     ) {
         when (val state = painter.state) {
             is AsyncImagePainter.State.Loading -> {
-// Display a loading placeholder with a default aspect ratio.
+// While loading, show a circular progress indicator within a box of fixed aspect ratio.
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -166,18 +169,12 @@ fun GalleryImageItem(imageUrl: String) {
                 }
             }
             is AsyncImagePainter.State.Error -> {
-// Display an error placeholder.
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(1f),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("Error", color = Color.Red)
-                }
+// When an error occurs, return an empty Box (so nothing is visible and no space is taken).
+// Alternatively, you could simply return Unit or not draw anything.
+                Box(modifier = Modifier.height(0.dp))
             }
             is AsyncImagePainter.State.Success -> {
-// Compute and apply the intrinsic aspect ratio.
+// On success, compute the intrinsic aspect ratio.
                 val intrinsicSize = painter.intrinsicSize
                 val aspectRatio = if (intrinsicSize.height > 0f) {
                     intrinsicSize.width / intrinsicSize.height
@@ -187,16 +184,13 @@ fun GalleryImageItem(imageUrl: String) {
                         .fillMaxWidth()
                         .aspectRatio(aspectRatio)
                 ) {
+// Use explicit receiver for SubcomposeAsyncImageContent.
                     this@SubcomposeAsyncImage.SubcomposeAsyncImageContent()
                 }
             }
             else -> {
-// Fallback placeholder.
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(1f)
-                )
+// Fallback in case of any other state: show nothing.
+                Box(modifier = Modifier.height(0.dp))
             }
         }
     }
