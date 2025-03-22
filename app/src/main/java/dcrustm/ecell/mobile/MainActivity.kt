@@ -11,6 +11,8 @@ import dcrustm.ecell.mobile.domain.usecase.SetOnBoardingCompleteUseCase
 import dcrustm.ecell.mobile.navigation.OnBoardingNavigation
 import dcrustm.ecell.mobile.navigation.OnBoardingRoutes
 import dcrustm.ecell.mobile.navigation.RootApp
+import dcrustm.ecell.mobile.ui.meeting.MeetingApp
+import dcrustm.ecell.mobile.ui.meeting.MeetingScreen
 import dcrustm.ecell.mobile.ui.theme.AppTheme
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -36,12 +38,13 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             AppTheme {
-                OnBoardingNavigation(
-                    credentialManager = credentialManager,
-                    setOnBoardingCompleteUseCase = setOnBoardingCompleteUseCase,
-                    startDestination = if (isOnBoardingCompleted) OnBoardingRoutes.RootAppRoute
-                    else  OnBoardingRoutes.WelcomeAppRoute
-                )
+//                OnBoardingNavigation(
+//                    credentialManager = credentialManager,
+//                    setOnBoardingCompleteUseCase = setOnBoardingCompleteUseCase,
+//                    startDestination = if (isOnBoardingCompleted) OnBoardingRoutes.RootAppRoute
+//                    else  OnBoardingRoutes.WelcomeAppRoute
+//                )
+                MeetingApp()
             }
         }
     }

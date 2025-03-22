@@ -1,249 +1,337 @@
 package dcrustm.ecell.mobile.ui.meeting
 
-import android.content.Context
-import android.content.Intent
-import android.widget.Toast
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.AlertDialog
+
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.Divider
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.runtime.*
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.google.accompanist.pager.ExperimentalPagerApi
+import com.google.accompanist.pager.HorizontalPager
+import com.google.accompanist.pager.rememberPagerState
+import kotlinx.coroutines.launch
 
-// Define the meeting data model
-sealed class Meeting {
-    abstract val topic: String
-    abstract val scheduleTime: String
-    abstract val hostName: String
-
-    data class Virtual(
-        override val topic: String,
-        override val scheduleTime: String,
-        override val hostName: String,
-        val notifyUser: Boolean = true,
-        val googleMeetUrl: String
-    ) : Meeting()
-
-    data class Physical(
-        override val topic: String,
-        override val scheduleTime: String,
-        override val hostName: String,
-        val venueLocation: String
-    ) : Meeting()
-}
-
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MeetingScreen() {
-    // State variables for meeting details
-    var meetingType by remember { mutableStateOf("Virtual") } // Virtual or Physical
-    var topic by remember { mutableStateOf("") }
-    var scheduleTime by remember { mutableStateOf("") }
-    var hostName by remember { mutableStateOf("") }
-    var venueLocation by remember { mutableStateOf("") }
-    var notifyUser by remember { mutableStateOf(true) }
-    var googleMeetUrl by remember { mutableStateOf("") }
-    var urlError by remember { mutableStateOf("") }
-    var showDatePicker by remember { mutableStateOf(false) }
-
-    val context = LocalContext.current
-
-    // Center the entire layout vertically and horizontally
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(
-            modifier = Modifier
-                .padding(16.dp)
-                .fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text("Create Meeting", style = MaterialTheme.typography.headlineMedium)
-            Spacer(modifier = Modifier.height(16.dp))
-            // Meeting type selection using radio buttons
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                RadioButton(
-                    selected = meetingType == "Virtual",
-                    onClick = { meetingType = "Virtual" }
-                )
-                Text("Virtual Meeting", style = MaterialTheme.typography.bodyLarge)
-                Spacer(modifier = Modifier.width(16.dp))
-                RadioButton(
-                    selected = meetingType == "Physical",
-                    onClick = { meetingType = "Physical" }
-                )
-                Text("Physical Meeting", style = MaterialTheme.typography.bodyLarge)
-            }
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Common Field: Topic Name
-            OutlinedTextField(
-                value = topic,
-                onValueChange = { topic = it },
-                label = { Text("Topic Name") },
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Schedule Time field with a button to launch a date/time picker.
-            OutlinedTextField(
-                value = scheduleTime,
-                onValueChange = { /* Read-only field */ },
-                label = { Text("Schedule Time") },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = false,
-                trailingIcon = {
-                    IconButton(onClick = { showDatePicker = true }) {
-                        // Replace with your own date icon
+fun MeetingApp() {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(text = "Meeting Panel", style = MaterialTheme.typography.titleLarge) },
+                navigationIcon = {
+                    IconButton(onClick = { /* TODO: Implement dismiss action */ }) {
                         Icon(
-                            painter = painterResource(id = android.R.drawable.ic_menu_my_calendar),
-                            contentDescription = "Select Date"
+                            painter = painterResource(id = android.R.drawable.ic_menu_close_clear_cancel),
+                            contentDescription = "Dismiss"
                         )
-                    }
-                }
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Common Field: Host Name
-            OutlinedTextField(
-                value = hostName,
-                onValueChange = { hostName = it },
-                label = { Text("Host Name") },
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Display fields specific to Virtual meeting
-            if (meetingType == "Virtual") {
-                // Notify user Switch (defaulted to On)
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Notify Users", style = MaterialTheme.typography.bodyLarge)
-                    Spacer(modifier = Modifier.width(16.dp))
-                    Switch(
-                        checked = notifyUser,
-                        onCheckedChange = { notifyUser = it }
-                    )
-                }
-                Spacer(modifier = Modifier.height(16.dp))
-                // Google Meet URL input with basic validation
-                OutlinedTextField(
-                    value = googleMeetUrl,
-                    onValueChange = {
-                        googleMeetUrl = it
-                        urlError = if (googleMeetUrl.isNotEmpty() && !googleMeetUrl.startsWith("https://meet.google.com/"))
-                            "Enter a valid Google Meet URL" else ""
-                    },
-                    label = { Text("Google Meet URL") },
-                    modifier = Modifier.fillMaxWidth(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri)
-                )
-                if (urlError.isNotEmpty()) {
-                    Text(urlError, color = MaterialTheme.colorScheme.error)
-                }
-                Spacer(modifier = Modifier.height(16.dp))
-                // Button to launch the Google Meet app using an intent
-                Button(
-                    onClick = { launchGoogleMeet(context) },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Create New Meeting in Google Meet")
-                }
-            } else {
-                // Display field specific to Physical meeting: Venue Location
-                OutlinedTextField(
-                    value = venueLocation,
-                    onValueChange = { venueLocation = it },
-                    label = { Text("Venue Location") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-            Spacer(modifier = Modifier.height(24.dp))
-            // Save meeting button that prints the meeting data for debug purposes.
-            Button(
-                onClick = {
-                    if (topic.isBlank() || scheduleTime.isBlank() || hostName.isBlank()) {
-                        Toast.makeText(context, "Please fill in all required fields", Toast.LENGTH_LONG).show()
-                        return@Button
-                    }
-                    if (meetingType == "Virtual") {
-                        if (googleMeetUrl.isNotEmpty() && !googleMeetUrl.startsWith("https://meet.google.com/")) {
-                            Toast.makeText(context, "Invalid Google Meet URL", Toast.LENGTH_LONG).show()
-                            return@Button
-                        }
-                        val meeting = Meeting.Virtual(
-                            topic = topic,
-                            scheduleTime = scheduleTime,
-                            hostName = hostName,
-                            notifyUser = notifyUser,
-                            googleMeetUrl = googleMeetUrl
-                        )
-                        println("Meeting Data: $meeting")
-                    } else {
-                        if (venueLocation.isBlank()) {
-                            Toast.makeText(context, "Please fill in the venue location", Toast.LENGTH_LONG).show()
-                            return@Button
-                        }
-                        val meeting = Meeting.Physical(
-                            topic = topic,
-                            scheduleTime = scheduleTime,
-                            hostName = hostName,
-                            venueLocation = venueLocation
-                        )
-                        println("Meeting Data: $meeting")
                     }
                 },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Save Meeting")
-            }
+                modifier = Modifier.systemBarsPadding()
+            )
         }
-        // Date/Time Picker integration (simulate using an AlertDialog)
-        if (showDatePicker) {
-            AlertDialog(
-                onDismissRequest = { showDatePicker = false },
-                title = { Text("Select Schedule Time") },
-                text = { Text("Date/Time picker would appear here.") },
-                confirmButton = {
-                    TextButton(onClick = {
-                        // In a real integration use a compose date picker library (like ComposeDatePicker)
-                        // For demonstration, we simulate selecting a date and time
-                        scheduleTime = "2025-03-25 10:00"
-                        showDatePicker = false
-                    }) {
-                        Text("OK")
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showDatePicker = false }) {
-                        Text("Cancel")
-                    }
-                }
-            )
+    ) { innerPadding ->
+        Surface(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+        ) {
+            MeetingScreen()
         }
     }
 }
 
-// Helper function to launch the Google Meet app
-private fun launchGoogleMeet(context: Context) {
-    val packageManager = context.packageManager
-    // Replace with the actual package name of Google Meet
-    val intent: Intent? = packageManager.getLaunchIntentForPackage("com.google.android.apps.meetings")
-    if (intent != null) {
-        context.startActivity(intent)
-    } else {
-        Toast.makeText(context, "Google Meet app is not installed", Toast.LENGTH_LONG).show()
+
+@OptIn(ExperimentalPagerApi::class)
+@Composable
+fun MeetingScreen() {
+    // Pager state to manage HorizontalPager
+    val pagerState = rememberPagerState(initialPage = 0)
+    val coroutineScope = rememberCoroutineScope()
+
+    Scaffold { paddingValues ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .padding(16.dp)
+        ) {
+
+            Text(
+                text = "Host Meeting",
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.padding(bottom = 16.dp),
+                textAlign = TextAlign.Center
+            )
+
+            // Row for clickable texts to choose meeting type
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                val options = listOf("Physical", "Virtual")
+                options.forEachIndexed { index, option ->
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.clickable {
+                            // Scroll to page when option is tapped
+                            coroutineScope.launch {
+                                pagerState.animateScrollToPage(index)
+                            }
+                        }
+                    ) {
+                        Text(
+                            text = option,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = if (pagerState.currentPage == index)
+                                MaterialTheme.colorScheme.primary
+                            else
+                                MaterialTheme.colorScheme.onBackground
+                        )
+                        if (pagerState.currentPage == index) {
+                            Divider(
+                                modifier = Modifier
+                                    .height(2.dp)
+                                    .width(50.dp),
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        } else {
+                            Spacer(modifier = Modifier.height(2.dp))
+                        }
+                    }
+                }
+            }
+
+            // Divider right below the options row
+            Divider(modifier = Modifier.padding(vertical = 8.dp))
+
+            // Horizontal Pager with 2 pages
+            HorizontalPager(
+                count = 2,
+                state = pagerState,
+                modifier = Modifier.weight(1f)
+            ) { page ->
+                when (page) {
+                    0 -> PhysicalMeetingContent()
+                    1 -> VirtualMeetingContent()
+                }
+            }
+
+            // (Optional) You may add common bottom content here if needed.
+        }
+    }
+}
+
+@Composable
+fun PhysicalMeetingContent() {
+    // Local state for each input field
+    val hostName = remember { mutableStateOf("") }
+    val meetingAgenda = remember { mutableStateOf("") }
+    val meetingAvenue = remember { mutableStateOf("") }
+    val meetingDate = remember { mutableStateOf("") }  // Will trigger date picker (maxkeppeler)
+    val meetingTime = remember { mutableStateOf("") }  // Will trigger time picker (maxkeppeler)
+    val notifyUsers = remember { mutableStateOf(false) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+    ) {
+        // Host Name
+        OutlinedTextField(
+            value = hostName.value,
+            onValueChange = { hostName.value = it },
+            label = { Text("Host Name") },
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Meeting Agenda
+        OutlinedTextField(
+            value = meetingAgenda.value,
+            onValueChange = { meetingAgenda.value = it },
+            label = { Text("Meeting Agenda") },
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Meeting Avenue
+        OutlinedTextField(
+            value = meetingAvenue.value,
+            onValueChange = { meetingAvenue.value = it },
+            label = { Text("Meeting Avenue") },
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Meeting Date Picker
+        OutlinedTextField(
+            value = meetingDate.value,
+            onValueChange = { /* update if you change manually, otherwise open date picker dialog */ },
+            label = { Text("Select Date") },
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable {
+                    // Hook up maxkeppeler date picker here.
+                },
+            readOnly = true
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Meeting Time Picker
+        OutlinedTextField(
+            value = meetingTime.value,
+            onValueChange = { /* update if you change manually, otherwise open time picker dialog */ },
+            label = { Text("Select Time") },
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable {
+                    // Hook up maxkeppeler time picker here.
+                },
+            readOnly = true
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Switch for user notification
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(text = "Should users be notified?")
+            Spacer(modifier = Modifier.weight(1f))
+            Switch(
+                checked = notifyUsers.value,
+                onCheckedChange = { notifyUsers.value = it }
+            )
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Host and Dismiss buttons at the bottom of the form
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            Button(onClick = { /* Host meeting action */ }) {
+                Text(text = "Host")
+            }
+            Button(onClick = { /* Dismiss meeting action */ }) {
+                Text(text = "Dismiss")
+            }
+        }
+    }
+}
+
+
+@Composable
+fun VirtualMeetingContent() {
+    // Local state for each input field
+    val hostName = remember { mutableStateOf("") }
+    val meetingAgenda = remember { mutableStateOf("") }
+    val meetingUrl = remember { mutableStateOf("") }
+    val meetingDate = remember { mutableStateOf("") }  // Will trigger date picker (maxkeppeler)
+    val meetingTime = remember { mutableStateOf("") }  // Will trigger time picker (maxkeppeler)
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(8.dp)
+    ) {
+        // Host Name
+        OutlinedTextField(
+            value = hostName.value,
+            onValueChange = { hostName.value = it },
+            label = { Text("Host Name") },
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Meeting Agenda
+        OutlinedTextField(
+            value = meetingAgenda.value,
+            onValueChange = { meetingAgenda.value = it },
+            label = { Text("Meeting Agenda") },
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Meeting Url
+        OutlinedTextField(
+            value = meetingUrl.value,
+            onValueChange = { meetingUrl.value = it },
+            label = { Text("Meeting Url") },
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Meeting Date Picker
+        OutlinedTextField(
+            value = meetingDate.value,
+            onValueChange = { /* Optional: update manually if needed */ },
+            label = { Text("Select Date") },
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable {
+                    // Trigger the maxkeppeler date picker here.
+                },
+            readOnly = true
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Meeting Time Picker
+        OutlinedTextField(
+            value = meetingTime.value,
+            onValueChange = { /* Optional: update manually if needed */ },
+            label = { Text("Select Time") },
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable {
+                    // Trigger the maxkeppeler time picker here.
+                },
+            readOnly = true
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Host and Dismiss buttons
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            Button(onClick = { /* Host meeting action */ }) {
+                Text("Host")
+            }
+            Button(onClick = { /* Dismiss meeting action */ }) {
+                Text("Dismiss")
+            }
+        }
     }
 }

@@ -56,7 +56,7 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideImagesApiService(client: HttpClient): ImagesApiService {
-        val baseUrl = "http://192.168.1.12:8080" // Adjust the base URL as needed
+        val baseUrl = "http://shiven.one:9090" // Adjust the base URL as needed
         return ImagesApiService(client, baseUrl)
     }
 
@@ -65,6 +65,6 @@ object NetworkModule {
     @Named("base_url")
     fun provideBaseUrl(): String {
         // For Android emulator, use "10.0.2.2". For physical devices, adjust accordingly.
-        return "http://192.168.1.12:8080"
+        return "http://shiven.one:9090"
     }
 }
