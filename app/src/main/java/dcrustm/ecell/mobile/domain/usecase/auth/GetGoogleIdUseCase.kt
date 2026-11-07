@@ -3,6 +3,9 @@ package dcrustm.ecell.mobile.domain.usecase.auth
 import android.app.Activity
 import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
+import androidx.credentials.exceptions.GetCredentialCancellationException
+import androidx.credentials.exceptions.GetCredentialException
+import androidx.credentials.exceptions.NoCredentialException
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import dcrustm.ecell.mobile.domain.model.GoogleProviderUser
@@ -31,7 +34,15 @@ class GetGoogleIdUseCase @Inject constructor() {
             .build()
 
         // Display the Google sign-in dialog and get a credential response
-        val result = credentialManager.getCredential(request = request, context = context)
+        val result = try {
+            credentialManager.getCredential(request = request, context = context)
+        } catch (_: GetCredentialCancellationException) {
+            throw Exception("Sign-in cancelled")
+        } catch (_: NoCredentialException) {
+            throw Exception("No Google accounts found on this device. Please add a Google account in device settings.")
+        } catch (e: GetCredentialException) {
+            throw Exception(e.message ?: "Google sign-in failed")
+        }
 
         // Extract the Google ID token from the response
         val tokenCredential =

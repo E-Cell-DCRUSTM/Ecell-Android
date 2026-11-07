@@ -1,8 +1,8 @@
 package dcrustm.ecell.mobile.navigation
 
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -39,42 +39,20 @@ fun RootApp(
 
         composable(
             route = RootScreen.Profile.route,
-            enterTransition = {
-                slideInVertically(
-                    initialOffsetY = { it },
-                    animationSpec = tween(300)
-                )
-            },
-            exitTransition = {
-                slideOutVertically(
-                    targetOffsetY = { it },
-                    animationSpec = tween(150)
-                )
-            },
-            popEnterTransition = {
-                slideInVertically(initialOffsetY = { it }, animationSpec = tween(300))
-            },
-            popExitTransition = {
-                slideOutVertically(targetOffsetY = { it }, animationSpec = tween(150))
-            }
+            enterTransition = { fadeIn(animationSpec = tween(160)) },
+            exitTransition = { fadeOut(animationSpec = tween(120)) },
+            popEnterTransition = { fadeIn(animationSpec = tween(160)) },
+            popExitTransition = { fadeOut(animationSpec = tween(120)) }
         ) {
             ProfileScreen(onDismiss = { rootNavController.popBackStack() })
         }
 
         composable(
             route = RootScreen.Info.route,
-            enterTransition = {
-                slideInVertically(initialOffsetY = { it }, animationSpec = tween(300))
-            },
-            exitTransition = {
-                slideOutVertically(targetOffsetY = { it }, animationSpec = tween(150))
-            },
-            popEnterTransition = {
-                slideInVertically(initialOffsetY = { it }, animationSpec = tween(300))
-            },
-            popExitTransition = {
-                slideOutVertically(targetOffsetY = { it }, animationSpec = tween(150))
-            }
+            enterTransition = { fadeIn(animationSpec = tween(160)) },
+            exitTransition = { fadeOut(animationSpec = tween(120)) },
+            popEnterTransition = { fadeIn(animationSpec = tween(160)) },
+            popExitTransition = { fadeOut(animationSpec = tween(120)) }
         ) {
             AboutUsScreen(onDismiss = { rootNavController.popBackStack() })
         }
@@ -82,18 +60,10 @@ fun RootApp(
         composable(
             route = RootScreen.MemberDetail.route,
             arguments = listOf(navArgument("uid") { type = NavType.StringType }),
-            enterTransition = {
-                slideInVertically(initialOffsetY = { it }, animationSpec = tween(300))
-            },
-            exitTransition = {
-                slideOutVertically(targetOffsetY = { it }, animationSpec = tween(150))
-            },
-            popEnterTransition = {
-                slideInVertically(initialOffsetY = { it }, animationSpec = tween(300))
-            },
-            popExitTransition = {
-                slideOutVertically(targetOffsetY = { it }, animationSpec = tween(150))
-            }
+            enterTransition = { fadeIn(animationSpec = tween(160)) },
+            exitTransition = { fadeOut(animationSpec = tween(120)) },
+            popEnterTransition = { fadeIn(animationSpec = tween(160)) },
+            popExitTransition = { fadeOut(animationSpec = tween(120)) }
         ) {
             MemberDetailScreen(onBack = { rootNavController.popBackStack() })
         }

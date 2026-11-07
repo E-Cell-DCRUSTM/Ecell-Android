@@ -41,6 +41,68 @@ class FirebaseAuthRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun signInWithEmail(email: String, pass: String): AuthResult {
+        return try {
+            val result = firebaseAuth.signInWithEmailAndPassword(email, pass).awaitResult()
+            val firebaseUser = result.user
+                ?: return AuthError("Sign-in succeeded but no user was returned.")
+
+            ensureUserDocument(
+                uid = firebaseUser.uid,
+                displayName = firebaseUser.displayName ?: email.substringBefore("@"),
+                email = firebaseUser.email ?: email,
+                photoUrl = firebaseUser.photoUrl?.toString() ?: ""
+            )
+
+            AuthSuccess(accessToken = firebaseUser.uid, refreshToken = "")
+        } catch (e: Exception) {
+            AuthError(e.message ?: "Email sign-in failed")
+        }
+    }
+
+    override suspend fun signInAsTestUser(): AuthResult {
+        return try {
+            val result = firebaseAuth.signInAnonymously().awaitResult()
+            val firebaseUser = result.user
+                ?: return AuthError("Test sign-in failed.")
+
+            val uid = firebaseUser.uid
+            val docRef = firestore.collection("users").document(uid)
+            val contactRef = firestore.collection("userContacts").document(uid)
+            val snapshot = docRef.get().awaitResult()
+
+            if (!snapshot.exists()) {
+                val testMember = Member(
+                    uid = uid,
+                    name = "Test User",
+                    email = "test.user@dcrustm.ac.in",
+                    phone = "",
+                    year = 1,
+                    branch = "Computer Science & Engineering",
+                    committee = Committee.NONE,
+                    role = ROLE.PENDING,
+                    bio = "",
+                    profilePhotoUrl = "",
+                    joinedAt = System.currentTimeMillis(),
+                    isApproved = false
+                )
+                docRef.set(testMember.toFirestoreMap()).awaitResult()
+                contactRef.set(
+                    mapOf("email" to testMember.email, "phone" to "", "committee" to Committee.NONE.name)
+                ).awaitResult()
+            }
+
+            AuthSuccess(accessToken = uid, refreshToken = "")
+        } catch (e: Exception) {
+            val msg = e.message ?: ""
+            if (msg.contains("administrator only") || msg.contains("operation is restricted")) {
+                AuthError("Anonymous sign-in is disabled in Firebase. Enable it: Firebase Console -> Authentication -> Sign-in method -> Anonymous.")
+            } else {
+                AuthError(msg.ifBlank { "Test sign-in failed" })
+            }
+        }
+    }
+
     override fun signOut() {
         firebaseAuth.signOut()
     }
