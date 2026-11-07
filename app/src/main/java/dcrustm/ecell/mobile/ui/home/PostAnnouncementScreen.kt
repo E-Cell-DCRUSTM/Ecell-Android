@@ -27,11 +27,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -40,10 +43,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import dcrustm.ecell.mobile.domain.model.Committee
+import dcrustm.ecell.mobile.domain.model.ROLE
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -57,10 +63,24 @@ fun PostAnnouncementScreen(
     var selectedCommittee by remember { mutableStateOf<Committee?>(null) }
     var committeeMenuExpanded by remember { mutableStateOf(false) }
     val isPosting by viewModel.isPosting.collectAsState()
+    val currentUser by viewModel.currentUser.collectAsState()
+    val isHead = currentUser?.role == ROLE.COMMITTEE_HEAD
+    LaunchedEffect(currentUser?.uid) {
+        if (isHead) selectedCommittee = currentUser?.committee
+    }
+    val errorMessage by viewModel.errorMessage.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+    LaunchedEffect(errorMessage) {
+        errorMessage?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearError()
+        }
+    }
 
     val canPost = title.isNotBlank() && body.length >= 10 && !isPosting
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text("New announcement", style = MaterialTheme.typography.titleMedium) },
@@ -111,10 +131,11 @@ fun PostAnnouncementScreen(
 
             ExposedDropdownMenuBox(
                 expanded = committeeMenuExpanded,
-                onExpandedChange = { committeeMenuExpanded = it }
+                onExpandedChange = { if (!isHead) committeeMenuExpanded = it }
             ) {
                 OutlinedTextField(
-                    value = selectedCommittee?.displayName ?: "All members (org-wide)",
+                    value = if (isHead) currentUser?.committee?.displayName.orEmpty()
+                        else selectedCommittee?.displayName ?: "All members (org-wide)",
                     onValueChange = {},
                     readOnly = true,
                     label = { Text("Audience") },
@@ -131,12 +152,12 @@ fun PostAnnouncementScreen(
                     expanded = committeeMenuExpanded,
                     onDismissRequest = { committeeMenuExpanded = false }
                 ) {
-                    DropdownMenuItem(
+                    if (!isHead) DropdownMenuItem(
                         text = { Text("All members (org-wide)") },
                         onClick = { selectedCommittee = null; committeeMenuExpanded = false },
                         contentPadding = PaddingValues(horizontal = 16.dp)
                     )
-                    Committee.entries.filter { it != Committee.NONE }.forEach { c ->
+                    Committee.entries.filter { it != Committee.NONE && (!isHead || it == currentUser?.committee) }.forEach { c ->
                         DropdownMenuItem(
                             text = { Text(c.displayName, style = MaterialTheme.typography.bodyMedium) },
                             onClick = { selectedCommittee = c; committeeMenuExpanded = false },
@@ -158,7 +179,11 @@ fun PostAnnouncementScreen(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                Switch(checked = isPinned, onCheckedChange = { isPinned = it })
+                Switch(
+                    checked = isPinned,
+                    onCheckedChange = { isPinned = it },
+                    modifier = Modifier.semantics { contentDescription = "Pin announcement to top" }
+                )
             }
 
             Spacer(Modifier.height(4.dp))

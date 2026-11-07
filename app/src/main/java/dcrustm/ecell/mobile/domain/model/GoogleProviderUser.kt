@@ -7,17 +7,3 @@ data class GoogleProviderUser(
     val email: String,
     val photoUrl: String? = null
 )
-
-fun GoogleProviderUser.toUser(): User {
-    val (firstName, lastName) = fullName!!.split(" ", limit = 2).let {
-        it.first() to it.getOrNull(1)
-    }
-    return User(
-        firstName = firstName,
-        lastName = lastName,
-        email = email,
-        password = null,
-        photoUrl = photoUrl,
-        oauthGoogle = oauthGoogle
-    )
-}

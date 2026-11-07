@@ -38,3 +38,8 @@ data class Member(
         ROLE.PENDING -> "Pending Approval"
     }
 }
+
+data class MemberContact(
+    val email: String = "",
+    val phone: String = ""
+)

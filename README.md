@@ -1,112 +1,57 @@
-# Ecell-Android
-The official Ecell android app for everything related E-Cell @DCRUSTM
+# E-Cell DCRUSTM Android
 
----
+The Android app for E-Cell at DCRUSTM. It is built with Kotlin, Jetpack Compose, Firebase Authentication, Cloud Firestore, and Firebase Cloud Messaging.
 
-## Firebase Setup (required before the app will run)
+## Implemented features
 
-The app uses Firebase Auth (Google Sign-In) + Firestore as its backend.
-`app/google-services.json` is gitignored — each developer needs their own
-copy from the Firebase console for project `ecell-dcrust`.
+- Google sign-in with coordinator approval for new accounts.
+- Member profiles, directory search, committee roster management, and coordinator approvals.
+- Committee-scoped and organization-wide announcements.
+- Upcoming events with date, time, location, and virtual meeting details.
+- Private complaints submitted by members and reviewed by the coordinator.
+- Push notifications for announcements, events, and complaint updates.
 
-### One-time Firebase Console steps
+Market news, meeting summaries, quizzes, and the local scoreboard described in older project notes are not part of the current app.
 
-1. **Add your SHA-1 fingerprint** (Google Sign-In won't work without this)
-   - Get it: `./gradlew signingReport` → copy the `SHA1` value under the `debug` variant
-   - Firebase Console → Project Settings → your Android app → **Add fingerprint** → paste it
-   - Firebase then generates an Android-type OAuth client automatically
-   - Re-download `google-services.json` afterwards and replace `app/google-services.json`
+## Architecture
 
-2. **Publish the Firestore security rules**
-   - Firebase Console → Firestore Database → **Rules** tab
-   - Paste the contents of [`firestore.rules`](firestore.rules) (repo root) → **Publish**
-   - (Or via CLI: `firebase deploy --only firestore:rules`)
+The Android client uses Compose screens, ViewModels, repository interfaces, Firestore-backed repository implementations, and Hilt dependency injection. `firestore.rules` is the authorization boundary; UI role checks are for presentation and are not a substitute for those rules.
 
-3. **Bootstrap the first coordinator account**
-   - Build and run the app, sign in once with Google (your own account)
-   - This creates a `users/{your-uid}` Firestore document with `role: PENDING`,
-     `isApproved: false` — nobody can self-promote to coordinator, by design
-   - Firebase Console → Firestore Database → **Data** → `users` collection →
-     find your document (matched by name/email) → manually set `role` to
-     `"COORDINATOR"` and `isApproved` to `true`
-   - From then on, every further approval happens in-app: the coordinator
-     approves pending members and assigns them to a committee
+Public member directory data is stored in `users/{uid}`. Private email and phone fields belong in `userContacts/{uid}` and are readable by the owner, coordinators, and the member's committee head. Push tokens belong in the owner-only `userDevices/{uid}` document. Announcements, events, and complaints are stored in their matching top-level collections.
 
-### Firestore data model
+## Firebase setup
 
-- `users/{uid}` — name, email, phone, year, branch, committee, role, bio, profilePhotoUrl, joinedAt, isApproved
-- `announcements/{id}` — title, body, authorUid, authorName, committee (`null` = org-wide), createdAt, isPinned, attachmentUrl
-- `complaints/{id}` — title, body, filerUid, filerName, filerCommittee, status, response, createdAt
+1. Add the Android app to the Firebase project and place its `google-services.json` at `app/google-services.json`. The file is ignored by Git. Configure Google sign-in and add the SHA-1 for each signing variant; the Google services Gradle plugin supplies the web client ID used by the app.
+2. Install the Firebase CLI and select the intended project with `firebase use --add`.
+3. **Before deploying the tightened rules**, migrate existing public contact fields. Back up Firestore first, authenticate the Firebase Admin SDK through Application Default Credentials, install the Functions dependencies, and run:
 
-### Known trade-off
+   ```powershell
+   gcloud auth application-default login
+   cd functions
+   npm install
+   npm run migrate:contacts -- ecell-dcrust
+   cd ..
+   ```
 
-`firestore.rules` restricts reads mostly at the document level, not per field:
-any *approved* member can read another approved member's full profile
-document (including phone number), not just the subset the in-app directory
-UI shows them. Splitting `users/{uid}` into a public profile doc plus a
-`users/{uid}/private/contact` subcollection would let rules restrict
-phone/email more tightly (self, coordinator, or committee head of the same
-committee only) if that's needed later.
+   Replace `ecell-dcrust` with the intended Firebase project ID. The migration copies existing email and phone values to `userContacts`, moves FCM tokens to `userDevices`, then removes those private fields from `users`. It is safe to rerun.
+4. Deploy the Firestore rules and notification functions:
 
----
+   ```powershell
+   firebase deploy --only firestore:rules,functions
+   ```
 
-## Features
+   This Firestore schema change is coordinated with the current Android app. Older app builds still write private fields to `users/{uid}` and cannot register tokens in `userDevices/{uid}`; plan a coordinated app/rules rollout and require users to update.
 
-### Market News Dashboard
-- **Curated Content:** Displays the latest market news and trends.
-- **Offline Caching:** Pre-loads and caches news content for offline access, with updates when connectivity is available using Android's Workmanager API.
-- **User-Friendly Interface:** Provides easy filtering and navigation through organized content.
+5. Sign in once with the first coordinator account. In Firestore, set that account's `users/{uid}` fields to `role: "COORDINATOR"` and `isApproved: true`. The account can then approve members in the app.
 
-### Meetings Module
-- **Schedule Display:** Lists upcoming meetings with details such as time, venue, and host.
-- **Meeting Summaries:** Offers neat summaries and key takeaways from past meetings.
-- **Push Notifications:** Sends reminders for upcoming events.
+## Build
 
-### Quiz with Buzzer System
-- **Interactive Sessions:** Hosts live quizzes where participants can join using a buzzer.
-- **Latency Check:** Determines precisely for latency before starting the quiz.
-- **Real-Time Feedback:** Delivers instant quiz responses and scoring updates.
+Use Android Studio or run `./gradlew assembleDebug` from the repository root. A local `app/google-services.json` is required by the Google Services Gradle plugin. The release build enables R8 and resource shrinking. For a Play-ready signed release, set `ANDROID_KEYSTORE_PATH`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, and `ANDROID_KEY_PASSWORD` in the build environment, then run `./gradlew assembleRelease`; keep the keystore and passwords out of Git. The Android version is `1.1.0` / version code `2` for this schema update.
 
-### Local Scoreboard Website
-- **Live Score Display:** Serves a local website that showcases real-time quiz scores on larger screens.
-- **Responsive Design:** Optimized for projectors, monitors, and various screen sizes.
-- **Seamless Access:** Accessible from any device connected to the local network.
+The Firebase Functions are TypeScript in `functions/src`. Firebase deployment runs the TypeScript build through `firebase.json`.
 
----
+## Security notes
 
-## Architecture: Clean Architecture
-
-ECell is built on Clean Architecture principles with usecases to streamline the multiple components, ensuring separation of concerns and scalability.
-
-## Roadmap
-
-### Phase 1: Core Features
-- [ ] Setup a REST API server to gather and serve market related news in the app.
-- [ ] **Market News Dashboard:** Implement offline caching and content display.
-- [ ] **Meetings Module:** Develop scheduling, notifications, and summary functionalities which can be done by an Admin.
-- [ ] **Quiz Feature:** Build interactive quizzes with a real-time buzzer system using server based approach as of now.
-- [ ] **Local Scoreboard:** Create a locally hosted website for live score display using nano httpd library.
-
-### Phase 2: Enhancements
-- [ ] Refine UI/UX for better engagement.
-- [ ] Consider an offline network based quiz featuers.
-
-### Phase 3: Future Expansion
-- [ ] Port to Kotlin Multi platform project for cross-platform(iOS Support as well).
-- [ ] Integrate external APIs for dynamic market news.
-- [ ] Expand scalability for multi-location and larger events.
-- [ ] Connectivity features for E-Cell alumnus network.
-
----
-
-## Contributing
-
-Contributions are welcome! To contribute:
-
-1. Fork the repository.
-2. Create a feature or resolve an issue.
-3. Commit your changes and push to your branch.
-4. Open a pull request for review.
-
-if you find any bugs simply file an issue in the repository as soon as possible. That would be really helpful.
-
+- Coordinator and committee-head permissions are enforced in Firestore rules. Heads can create and manage content only for their own committee; organization-wide content is coordinator-only.
+- Existing Firestore data must be migrated before deploying the rules. Directory reads for legacy documents are intentionally denied to other members while contact fields or FCM tokens remain on those records.
+- The current test source files are Android Studio template tests and do not cover application flows yet.

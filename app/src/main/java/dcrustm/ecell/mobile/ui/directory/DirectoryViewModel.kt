@@ -5,9 +5,7 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dcrustm.ecell.mobile.domain.model.Committee
 import dcrustm.ecell.mobile.domain.model.Member
-import dcrustm.ecell.mobile.domain.model.ROLE
 import dcrustm.ecell.mobile.domain.repository.MemberRepository
-import dcrustm.ecell.mobile.session.UserSessionManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -23,11 +21,8 @@ data class DirectoryFilter(
 
 @HiltViewModel
 class DirectoryViewModel @Inject constructor(
-    private val sessionManager: UserSessionManager,
     memberRepository: MemberRepository
 ) : ViewModel() {
-
-    val currentUser = sessionManager.currentUser
 
     private val allMembers = memberRepository.observeApprovedMembers()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -38,8 +33,7 @@ class DirectoryViewModel @Inject constructor(
         members.filter { member ->
             val matchesQuery = filter.query.isBlank() ||
                 member.name.contains(filter.query, ignoreCase = true) ||
-                member.branch.contains(filter.query, ignoreCase = true) ||
-                member.email.contains(filter.query, ignoreCase = true)
+                member.branch.contains(filter.query, ignoreCase = true)
             val matchesCommittee = filter.committee == null || member.committee == filter.committee
             val matchesYear = filter.year == null || member.year == filter.year
             matchesQuery && matchesCommittee && matchesYear
@@ -54,13 +48,4 @@ class DirectoryViewModel @Inject constructor(
         _filter.value = DirectoryFilter(query, committee, year)
     }
 
-    fun canSeeContact(viewer: Member?, target: Member): Boolean {
-        if (viewer == null) return false
-        return when (viewer.role) {
-            ROLE.COORDINATOR -> true
-            ROLE.COMMITTEE_HEAD -> viewer.committee == target.committee
-            ROLE.MEMBER -> viewer.uid == target.uid
-            ROLE.PENDING -> false
-        }
-    }
 }

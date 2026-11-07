@@ -8,6 +8,8 @@ import dcrustm.ecell.mobile.domain.model.ComplaintStatus
 import dcrustm.ecell.mobile.domain.repository.ComplaintRepository
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -20,9 +22,14 @@ class ComplaintInboxViewModel @Inject constructor(
     val complaints: StateFlow<List<Complaint>> = complaintRepository.observeAllComplaints()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    private val _errorMessage = MutableStateFlow<String?>(null)
+    val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
+    fun clearError() { _errorMessage.value = null }
+
     fun respond(id: String, status: ComplaintStatus, response: String) {
         viewModelScope.launch {
-            complaintRepository.updateComplaint(id, status, response)
+            runCatching { complaintRepository.updateComplaint(id, status, response) }
+                .onFailure { _errorMessage.value = it.message ?: "Could not update this complaint. Please try again." }
         }
     }
 }

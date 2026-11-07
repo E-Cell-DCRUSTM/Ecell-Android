@@ -6,9 +6,11 @@ import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import dcrustm.ecell.mobile.data.repository.FirestoreAnnouncementRepository
 import dcrustm.ecell.mobile.data.repository.FirestoreComplaintRepository
+import dcrustm.ecell.mobile.data.repository.FirestoreEventRepository
 import dcrustm.ecell.mobile.data.repository.FirestoreMemberRepository
 import dcrustm.ecell.mobile.domain.repository.AnnouncementRepository
 import dcrustm.ecell.mobile.domain.repository.ComplaintRepository
+import dcrustm.ecell.mobile.domain.repository.EventRepository
 import dcrustm.ecell.mobile.domain.repository.MemberRepository
 import javax.inject.Singleton
 
@@ -27,5 +29,9 @@ abstract class FirestoreRepositoryModule {
     @Binds
     @Singleton
     abstract fun bindComplaintRepository(impl: FirestoreComplaintRepository): ComplaintRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindEventRepository(impl: FirestoreEventRepository): EventRepository
 
 }

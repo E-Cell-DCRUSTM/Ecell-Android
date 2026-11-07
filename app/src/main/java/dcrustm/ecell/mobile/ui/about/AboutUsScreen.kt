@@ -44,6 +44,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dcrustm.ecell.mobile.R
+import dcrustm.ecell.mobile.BuildConfig
 import dcrustm.ecell.mobile.ui.theme.AppTheme
 import kotlinx.coroutines.launch
 
@@ -305,7 +306,7 @@ fun MissionCard(pagerState: PagerState, currentPage: Int) {
                     .offset(x=-6.dp)
             )
             Text(
-                text = "v25.02.28",
+                text = "v${BuildConfig.VERSION_NAME}",
                 style = MaterialTheme.typography.bodySmall
             )
         }

@@ -19,3 +19,6 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# Preserve useful crash locations in obfuscated release stack traces.
+-keepattributes SourceFile,LineNumberTable

@@ -22,6 +22,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
@@ -29,6 +31,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -56,6 +59,14 @@ fun ManageMembersScreen(
     val allMembers by viewModel.allMembers.collectAsState()
     val pendingMembers by viewModel.pendingMembers.collectAsState()
     val canApprove = viewModel.canApprove
+    val operationError by viewModel.operationError.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+    LaunchedEffect(operationError) {
+        operationError?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearOperationError()
+        }
+    }
 
     val filteredMembers = allMembers.filter { m ->
         query.isBlank() ||
@@ -68,6 +79,7 @@ fun ManageMembersScreen(
     val activeTab = if (canApprove) selectedTab else 0
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text(title, style = MaterialTheme.typography.titleMedium) },
@@ -128,7 +140,7 @@ fun ManageMembersScreen(
                             items(filteredMembers, key = { it.uid }) { member ->
                                 MemberRow(
                                     member = member,
-                                    showContact = true,
+                                    showContact = false,
                                     onClick = { onMemberClick(member.uid) }
                                 )
                             }

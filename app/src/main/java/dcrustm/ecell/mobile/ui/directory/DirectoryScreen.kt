@@ -57,7 +57,6 @@ fun DirectoryScreen(
     viewModel: DirectoryViewModel = hiltViewModel()
 ) {
     val members by viewModel.filteredMembers.collectAsState()
-    val currentUser by viewModel.currentUser.collectAsState()
     var query by remember { mutableStateOf("") }
     var selectedCommittee by remember { mutableStateOf<Committee?>(null) }
     var selectedYear by remember { mutableStateOf<Int?>(null) }
@@ -150,7 +149,8 @@ fun DirectoryScreen(
                     items(members, key = { it.uid }) { member ->
                         MemberRow(
                             member = member,
-                            showContact = viewModel.canSeeContact(currentUser, member),
+                            // Contact data is loaded only on the detail screen for authorized viewers.
+                            showContact = false,
                             onClick = { onMemberClick(member.uid) }
                         )
                     }

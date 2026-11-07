@@ -1,13 +1,12 @@
 package dcrustm.ecell.mobile.domain.usecase.auth
 
 import android.app.Activity
-import android.util.Base64
 import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import dcrustm.ecell.mobile.domain.model.GoogleProviderUser
-import org.json.JSONObject
+import dcrustm.ecell.mobile.R
 import javax.inject.Inject
 
 class GetGoogleIdUseCase @Inject constructor() {
@@ -23,7 +22,7 @@ class GetGoogleIdUseCase @Inject constructor() {
         val googleIdOption = GetGoogleIdOption.Builder()
             .setAutoSelectEnabled(false)
             .setFilterByAuthorizedAccounts(false)
-            .setServerClientId("223711631150-f0hmpq86p1t5fsg39l559o9oi51n2648.apps.googleusercontent.com")
+            .setServerClientId(context.getString(R.string.default_web_client_id))
             .build()
 
         // Create the credential request
@@ -40,36 +39,12 @@ class GetGoogleIdUseCase @Inject constructor() {
 
         val googleProviderUser = GoogleProviderUser(
             idToken = tokenCredential.idToken,
-            oauthGoogle = extractGoogleUserId(tokenCredential.idToken),
             fullName = tokenCredential.displayName,
             photoUrl = tokenCredential.profilePictureUri.toString(),
             email = tokenCredential.id
         )
 
-        println(googleProviderUser)
         return googleProviderUser
 
     }
-
-    private fun extractGoogleUserId(idToken: String): String? {
-        // Split the JWT into header, payload, and signature
-        val parts = idToken.split(".")
-        if (parts.size != 3) return null
-
-        return try {
-            // The payload is the second part of the JWT
-            val payload = parts[1]
-            // Decode the payload using Base64 URL-safe decoding
-            val decodedBytes = Base64.decode(payload, Base64.URL_SAFE or Base64.NO_WRAP)
-            val decodedPayload = String(decodedBytes, Charsets.UTF_8)
-            // Convert the decoded payload to a JSON object
-            val json = JSONObject(decodedPayload)
-            // Return the "sub" claim which holds the unique Google user id
-            json.getString("sub")
-        } catch (e: Exception) {
-            e.printStackTrace()
-            null
-        }
-    }
-
 }

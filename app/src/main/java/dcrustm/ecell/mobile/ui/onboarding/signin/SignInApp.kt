@@ -1,7 +1,8 @@
 package dcrustm.ecell.mobile.ui.onboarding.signin
 
-import android.annotation.SuppressLint
 import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -22,7 +23,12 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import dcrustm.ecell.mobile.ui.onboarding.AuthState
 import dcrustm.ecell.mobile.ui.onboarding.AuthViewModel
 
-@SuppressLint("ContextCastToActivity")
+tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
+}
+
 @Composable
 fun SignInApp(
     credentialManager: CredentialManager,
@@ -30,7 +36,8 @@ fun SignInApp(
     modifier: Modifier = Modifier
 ) {
     val viewModel: AuthViewModel = hiltViewModel()
-    val context = LocalContext.current as Activity
+    val context = LocalContext.current
+    val activity = context.findActivity() ?: return
 
     val authState by viewModel.authState.collectAsState()
 
@@ -38,11 +45,11 @@ fun SignInApp(
     LaunchedEffect(authState) {
         when (authState) {
             is AuthState.Authenticated -> {
-                Toast.makeText(context, "Authentication Successful", Toast.LENGTH_SHORT).show()
+                Toast.makeText(activity, "Authentication Successful", Toast.LENGTH_SHORT).show()
                 onSuccessfulLoginEvent()
             }
             is AuthState.Error -> {
-                Toast.makeText(context, (authState as AuthState.Error).message, Toast.LENGTH_SHORT).show()
+                Toast.makeText(activity, (authState as AuthState.Error).message, Toast.LENGTH_SHORT).show()
             }
             else -> Unit
         }
@@ -50,16 +57,8 @@ fun SignInApp(
 
 
     Box(modifier = modifier.fillMaxSize()) {
-        // Your SignInScreen remains the same, just trigger the viewModel functions.
         SignInScreen(
-            onGoogleSignupClick = { viewModel.signUpWithGoogle(credentialManager, context) },
-            onGoogleLoginClick = { viewModel.loginWithGoogle(credentialManager, context) },
-            onEmailSignupClick = { userData ->
-                viewModel.signUpWithEmail(userData)
-            },
-            onEmailLoginClick = { email, password ->
-                viewModel.loginWithEmail(email, password)
-            }
+            onContinueWithGoogleClick = { viewModel.continueWithGoogle(credentialManager, activity) }
         )
 
         // Show a full-screen loading indicator when in Loading state.

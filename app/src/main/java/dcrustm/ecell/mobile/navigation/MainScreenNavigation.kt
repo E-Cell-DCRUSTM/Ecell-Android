@@ -1,12 +1,14 @@
 package dcrustm.ecell.mobile.navigation
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Campaign
 import androidx.compose.material.icons.filled.Feedback
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Inbox
 import androidx.compose.material.icons.filled.ManageAccounts
 import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Campaign
 import androidx.compose.material.icons.outlined.Feedback
 import androidx.compose.material.icons.outlined.Group
@@ -26,6 +28,11 @@ sealed class Screen(
     object Home : Screen(
         "home", "Home",
         Icons.Filled.Campaign, Icons.Outlined.Campaign
+    )
+
+    object Events : Screen(
+        "events", "Schedule",
+        Icons.Filled.CalendarMonth, Icons.Outlined.CalendarMonth
     )
 
     object Directory : Screen(
@@ -60,6 +67,7 @@ sealed class Screen(
 
 fun screensForRole(role: ROLE): List<Screen> = listOf(
     Screen.Home,
+    Screen.Events,
     Screen.Directory,
     Screen.MyCommittee,
     Screen.Complaints,

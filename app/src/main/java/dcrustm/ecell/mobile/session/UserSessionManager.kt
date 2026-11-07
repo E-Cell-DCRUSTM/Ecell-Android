@@ -5,6 +5,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import dcrustm.ecell.mobile.data.firebase.toMember
 import dcrustm.ecell.mobile.domain.model.Member
+import dcrustm.ecell.mobile.domain.model.MemberContact
 import dcrustm.ecell.mobile.domain.model.ROLE
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -31,11 +32,16 @@ class UserSessionManager @Inject constructor(
     val isMember: Boolean get() = role == ROLE.MEMBER || role == ROLE.COMMITTEE_HEAD || role == ROLE.COORDINATOR
 
     private var userDocListener: ListenerRegistration? = null
+    private var contactDocListener: ListenerRegistration? = null
+    private var currentContact = MemberContact()
 
     init {
         firebaseAuth.addAuthStateListener { auth ->
             userDocListener?.remove()
             userDocListener = null
+            contactDocListener?.remove()
+            contactDocListener = null
+            currentContact = MemberContact()
 
             val uid = auth.currentUser?.uid
             _isSignedIn.value = uid != null
@@ -44,7 +50,21 @@ class UserSessionManager @Inject constructor(
             } else {
                 userDocListener = firestore.collection("users").document(uid)
                     .addSnapshotListener { snapshot, _ ->
-                        _currentUser.value = snapshot?.toMember()
+                        _currentUser.value = snapshot?.toMember()?.copy(
+                            email = currentContact.email,
+                            phone = currentContact.phone
+                        )
+                    }
+                contactDocListener = firestore.collection("userContacts").document(uid)
+                    .addSnapshotListener { snapshot, _ ->
+                        currentContact = if (snapshot?.exists() == true) MemberContact(
+                            email = snapshot.getString("email") ?: "",
+                            phone = snapshot.getString("phone") ?: ""
+                        ) else MemberContact()
+                        _currentUser.value = _currentUser.value?.copy(
+                            email = currentContact.email,
+                            phone = currentContact.phone
+                        )
                     }
             }
         }

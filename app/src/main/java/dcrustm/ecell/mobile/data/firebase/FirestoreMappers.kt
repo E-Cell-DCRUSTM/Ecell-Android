@@ -5,6 +5,7 @@ import dcrustm.ecell.mobile.domain.model.Announcement
 import dcrustm.ecell.mobile.domain.model.Committee
 import dcrustm.ecell.mobile.domain.model.Complaint
 import dcrustm.ecell.mobile.domain.model.ComplaintStatus
+import dcrustm.ecell.mobile.domain.model.EventItem
 import dcrustm.ecell.mobile.domain.model.Member
 import dcrustm.ecell.mobile.domain.model.ROLE
 
@@ -18,8 +19,6 @@ private inline fun <reified T : Enum<T>> safeEnum(name: String?, default: T): T 
 fun Member.toFirestoreMap(): Map<String, Any?> = mapOf(
     "uid" to uid,
     "name" to name,
-    "email" to email,
-    "phone" to phone,
     "year" to year,
     "branch" to branch,
     "committee" to committee.name,
@@ -35,8 +34,8 @@ fun DocumentSnapshot.toMember(): Member? {
     return Member(
         uid = id,
         name = getString("name") ?: "",
-        email = getString("email") ?: "",
-        phone = getString("phone") ?: "",
+        email = "",
+        phone = "",
         year = (getLong("year") ?: 1L).toInt(),
         branch = getString("branch") ?: "",
         committee = safeEnum(getString("committee"), Committee.NONE),
@@ -72,6 +71,37 @@ fun DocumentSnapshot.toAnnouncement(): Announcement? {
         createdAt = getLong("createdAt") ?: 0L,
         isPinned = getBoolean("isPinned") ?: false,
         attachmentUrl = getString("attachmentUrl") ?: ""
+    )
+}
+
+fun EventItem.toFirestoreMap(): Map<String, Any?> = mapOf(
+    "title" to title,
+    "description" to description,
+    "startTime" to startTime,
+    "location" to location,
+    "isVirtual" to isVirtual,
+    "meetingLink" to meetingLink,
+    "committee" to committee?.name,
+    "createdByUid" to createdByUid,
+    "createdByName" to createdByName,
+    "createdAt" to createdAt
+)
+
+fun DocumentSnapshot.toEvent(): EventItem? {
+    if (!exists()) return null
+    val committeeName = getString("committee")
+    return EventItem(
+        id = id,
+        title = getString("title") ?: "",
+        description = getString("description") ?: "",
+        startTime = getLong("startTime") ?: 0L,
+        location = getString("location") ?: "",
+        isVirtual = getBoolean("isVirtual") ?: false,
+        meetingLink = getString("meetingLink") ?: "",
+        committee = committeeName?.let { safeEnum(it, Committee.NONE) },
+        createdByUid = getString("createdByUid") ?: "",
+        createdByName = getString("createdByName") ?: "",
+        createdAt = getLong("createdAt") ?: 0L
     )
 }
 

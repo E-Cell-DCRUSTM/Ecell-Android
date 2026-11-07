@@ -49,6 +49,7 @@ fun ProfileScreen(
 ) {
     val member by viewModel.currentUser.collectAsState()
     val isSaving by viewModel.isSaving.collectAsState()
+    val errorMessage by viewModel.errorMessage.collectAsState()
 
     var phone by remember { mutableStateOf("") }
     var bio by remember { mutableStateOf("") }
@@ -90,6 +91,11 @@ fun ProfileScreen(
                     .verticalScroll(rememberScrollState()),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                errorMessage?.let { message ->
+                    Text(message, color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall)
+                    Spacer(Modifier.height(8.dp))
+                }
                 InitialsAvatar(initials = m.initials, size = 88)
                 Spacer(Modifier.height(12.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {

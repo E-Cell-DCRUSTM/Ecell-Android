@@ -20,22 +20,33 @@ class ComplaintViewModel @Inject constructor(
 
     private val _isSubmitting = MutableStateFlow(false)
     val isSubmitting: StateFlow<Boolean> = _isSubmitting.asStateFlow()
+    private val _errorMessage = MutableStateFlow<String?>(null)
+    val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
+
+    fun clearError() { _errorMessage.value = null }
 
     fun submit(title: String, body: String, onDone: () -> Unit) {
         val user = sessionManager.currentUser.value ?: return
+        if (_isSubmitting.value) return
         _isSubmitting.value = true
+        _errorMessage.value = null
         viewModelScope.launch {
-            complaintRepository.submitComplaint(
-                Complaint(
-                    title = title,
-                    body = body,
-                    filerUid = user.uid,
-                    filerName = user.name,
-                    filerCommittee = user.committee
+            try {
+                complaintRepository.submitComplaint(
+                    Complaint(
+                        title = title,
+                        body = body,
+                        filerUid = user.uid,
+                        filerName = user.name,
+                        filerCommittee = user.committee
+                    )
                 )
-            )
-            _isSubmitting.value = false
-            onDone()
+                onDone()
+            } catch (error: Exception) {
+                _errorMessage.value = error.message ?: "Could not submit the complaint. Please try again."
+            } finally {
+                _isSubmitting.value = false
+            }
         }
     }
 }

@@ -1,5 +1,9 @@
 package dcrustm.ecell.mobile.navigation
 
+import android.Manifest
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -16,6 +20,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -33,11 +38,14 @@ import dcrustm.ecell.mobile.ui.complaint.ComplaintScreen
 import dcrustm.ecell.mobile.ui.complaint.ComplaintInboxScreen
 import dcrustm.ecell.mobile.ui.coordinator.ManageMembersScreen
 import dcrustm.ecell.mobile.ui.directory.DirectoryScreen
+import dcrustm.ecell.mobile.ui.events.CreateEventScreen
+import dcrustm.ecell.mobile.ui.events.EventsScreen
 import dcrustm.ecell.mobile.ui.home.HomeScreen
 import dcrustm.ecell.mobile.ui.home.InitialsAvatar
 import dcrustm.ecell.mobile.ui.home.PostAnnouncementScreen
 
 private const val ROUTE_POST_ANNOUNCEMENT = "post_announcement"
+private const val ROUTE_CREATE_EVENT = "create_event"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,6 +61,17 @@ fun MainScreen(
     if (screens.isEmpty()) {
         PendingApprovalScreen(onSignOut = { viewModel.signOut() })
         return
+    }
+
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { /* Either way, push just won't show locally — nothing else to do here. */ }
+
+    LaunchedEffect(currentUser?.uid) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+        viewModel.registerPushToken()
     }
 
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
@@ -121,6 +140,9 @@ fun MainScreen(
             composable(Screen.Home.route) {
                 HomeScreen(onPostClick = { navController.navigate(ROUTE_POST_ANNOUNCEMENT) })
             }
+            composable(Screen.Events.route) {
+                EventsScreen(onCreateClick = { navController.navigate(ROUTE_CREATE_EVENT) })
+            }
             composable(Screen.Directory.route) {
                 DirectoryScreen(
                     onMemberClick = { uid ->
@@ -150,6 +172,9 @@ fun MainScreen(
             }
             composable(ROUTE_POST_ANNOUNCEMENT) {
                 PostAnnouncementScreen(onBack = { navController.popBackStack() })
+            }
+            composable(ROUTE_CREATE_EVENT) {
+                CreateEventScreen(onBack = { navController.popBackStack() })
             }
         }
     }

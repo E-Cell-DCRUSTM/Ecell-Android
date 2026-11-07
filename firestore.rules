@@ -28,27 +28,34 @@ service cloud.firestore {
     }
 
     function isCoordinator() {
-      return myRole() == 'COORDINATOR';
+      return isApprovedUser() && myRole() == 'COORDINATOR';
     }
 
     function isHead() {
-      return myRole() == 'COMMITTEE_HEAD';
+      return isApprovedUser() && myRole() == 'COMMITTEE_HEAD';
     }
 
-    // users/{uid} — member profile.
-    // NOTE: this is a single document per member, readable by any approved member.
-    // Phone/email are therefore visible to the whole approved membership (not just
-    // the privacy tiers the app UI applies for its own contact-display logic) —
-    // Firestore rules can't mask individual fields without splitting into a second
-    // document/subcollection. Flagged for anyone revisiting this: split into
-    // users/{uid} (public) + users/{uid}/private/contact if stricter contact-info
-    // privacy is required later.
+    function isHeadOfCommittee(committee) {
+      return isHead() && committee != null
+             && committee != 'NONE'
+             && committee == userData(myUid()).committee;
+    }
+
+    // users/{uid} — public member directory profile, without contact fields.
     match /users/{userId} {
-      allow read: if isSignedIn() && (myUid() == userId || isApprovedUser());
+      // Legacy contact fields and push tokens remain readable only by the
+      // document owner until the one-time migration has moved them out.
+      allow read: if isSignedIn() && (myUid() == userId
+                    || (isApprovedUser()
+                        && !resource.data.keys().hasAny(['email', 'phone', 'fcmTokens'])));
 
       // First-time self-registration must use safe, unprivileged defaults.
       allow create: if isSignedIn()
                     && myUid() == userId
+                    && request.resource.data.keys().hasOnly([
+                      'uid', 'name', 'year', 'branch', 'committee', 'role', 'bio',
+                      'profilePhotoUrl', 'joinedAt', 'isApproved'
+                    ])
                     && request.resource.data.role == 'PENDING'
                     && request.resource.data.isApproved == false;
 
@@ -56,6 +63,10 @@ service cloud.firestore {
       // A member can edit their own profile but not elevate themselves.
       allow update: if isCoordinator()
                     || (isSignedIn() && myUid() == userId
+                        && request.resource.data.keys().hasOnly([
+                          'uid', 'name', 'year', 'branch', 'committee', 'role', 'bio',
+                          'profilePhotoUrl', 'joinedAt', 'isApproved'
+                        ])
                         && request.resource.data.role == resource.data.role
                         && request.resource.data.isApproved == resource.data.isApproved
                         && request.resource.data.committee == resource.data.committee);
@@ -63,15 +74,73 @@ service cloud.firestore {
       allow delete: if isCoordinator();
     }
 
+    // Contact details are kept outside the public member directory document.
+    // Heads may read only contacts belonging to their own committee.
+    match /userContacts/{userId} {
+      allow get: if isSignedIn() && (myUid() == userId || isCoordinator()
+                    || (isHead() && resource.data.committee == userData(myUid()).committee));
+      allow list: if isCoordinator()
+                    || (isHead() && resource.data.committee == userData(myUid()).committee);
+      allow create: if isSignedIn() && myUid() == userId
+                    && userExists(userId)
+                    && request.resource.data.keys().hasOnly(['email', 'phone', 'committee'])
+                    && request.resource.data.committee == userData(userId).committee;
+      allow update: if isCoordinator()
+                    || (isSignedIn() && myUid() == userId
+                        && request.resource.data.committee == resource.data.committee
+                        && request.resource.data.diff(resource.data).affectedKeys()
+                            .hasOnly(['email', 'phone']));
+      allow delete: if isCoordinator();
+    }
+
+    // Device push tokens are private to the signed-in owner. Admin SDK functions
+    // can read them for delivery without exposing them to other app users.
+    match /userDevices/{userId} {
+      allow read: if isSignedIn() && myUid() == userId;
+      allow create: if isSignedIn() && myUid() == userId
+                    && request.resource.data.keys().hasOnly(['fcmTokens']);
+      allow update: if isSignedIn() && myUid() == userId
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                        .hasOnly(['fcmTokens']);
+      allow delete: if isSignedIn() && myUid() == userId;
+    }
+
     // announcements/{id}
     match /announcements/{id} {
       allow read: if isApprovedUser();
 
-      allow create: if (isCoordinator() || isHead())
-                    && request.resource.data.authorUid == myUid();
+      allow create: if request.resource.data.authorUid == myUid()
+                    && (isCoordinator()
+                        || isHeadOfCommittee(request.resource.data.committee));
 
-      allow update, delete: if isCoordinator()
-                    || (isHead() && resource.data.authorUid == myUid());
+      allow update: if isCoordinator()
+                    || (isHead() && resource.data.authorUid == myUid()
+                        && request.resource.data.authorUid == resource.data.authorUid
+                        && isHeadOfCommittee(resource.data.committee)
+                        && request.resource.data.committee == resource.data.committee);
+
+      allow delete: if isCoordinator()
+                    || (isHead() && resource.data.authorUid == myUid()
+                        && isHeadOfCommittee(resource.data.committee));
+    }
+
+    // events/{id} — the timetable/schedule (meetings, deadlines, sessions).
+    match /events/{id} {
+      allow read: if isApprovedUser();
+
+      allow create: if request.resource.data.createdByUid == myUid()
+                    && (isCoordinator()
+                        || isHeadOfCommittee(request.resource.data.committee));
+
+      allow update: if isCoordinator()
+                    || (isHead() && resource.data.createdByUid == myUid()
+                        && request.resource.data.createdByUid == resource.data.createdByUid
+                        && isHeadOfCommittee(resource.data.committee)
+                        && request.resource.data.committee == resource.data.committee);
+
+      allow delete: if isCoordinator()
+                    || (isHead() && resource.data.createdByUid == myUid()
+                        && isHeadOfCommittee(resource.data.committee));
     }
 
     // complaints/{id} — identity is only exposed to the coordinator and to the
