@@ -4,17 +4,9 @@ import android.Manifest
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Info
-import androidx.compose.material3.CenterAlignedTopAppBar
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
@@ -23,9 +15,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
@@ -43,7 +33,6 @@ import dcrustm.ecell.mobile.ui.directory.DirectoryScreen
 import dcrustm.ecell.mobile.ui.events.CreateEventScreen
 import dcrustm.ecell.mobile.ui.events.EventsScreen
 import dcrustm.ecell.mobile.ui.home.HomeScreen
-import dcrustm.ecell.mobile.ui.home.InitialsAvatar
 import dcrustm.ecell.mobile.ui.home.PostAnnouncementScreen
 import dcrustm.ecell.mobile.ui.poll.PollsScreen
 
@@ -51,7 +40,6 @@ private const val ROUTE_POST_ANNOUNCEMENT = "post_announcement"
 private const val ROUTE_CREATE_EVENT = "create_event"
 private const val ROUTE_CHAT = "chat/{conversationId}/{otherUid}"
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(
     rootNavController: NavHostController,
@@ -80,38 +68,19 @@ fun MainScreen(
 
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = currentBackStackEntry?.destination?.route ?: Screen.Home.route
-    val currentScreen = screens.firstOrNull { it.route == currentRoute } ?: screens.first()
-    val isChatRoute = currentRoute?.startsWith("chat/") == true
+    val isSecondaryRoute = currentRoute.startsWith("chat/") ||
+        currentRoute == ROUTE_POST_ANNOUNCEMENT ||
+        currentRoute == ROUTE_CREATE_EVENT
+    val selectedBottomRoute = if (screens.any { it.route == currentRoute }) currentRoute else Screen.More.route
 
     Scaffold(
-        topBar = {
-            if (!isChatRoute) {
-                CenterAlignedTopAppBar(
-                    title = { Text(text = currentScreen.title, style = MaterialTheme.typography.titleMedium) },
-                    navigationIcon = {
-                        IconButton(onClick = { rootNavController.navigate(RootScreen.Profile.route) }) {
-                            Box(contentAlignment = Alignment.Center) {
-                                InitialsAvatar(initials = currentUser?.initials ?: "?", size = 34)
-                            }
-                        }
-                    },
-                    actions = {
-                        IconButton(onClick = { rootNavController.navigate(RootScreen.Info.route) }) {
-                            Icon(Icons.Outlined.Info, contentDescription = "About")
-                        }
-                    },
-                    modifier = Modifier.statusBarsPadding()
-                )
-            }
-        },
         bottomBar = {
-            if (!isChatRoute) {
+            if (!isSecondaryRoute) {
                 NavigationBar(
-                    containerColor = Color(0xFFFCFCF9),
                     modifier = Modifier.navigationBarsPadding()
                 ) {
                     screens.forEach { screen ->
-                        val selected = currentRoute == screen.route
+                        val selected = selectedBottomRoute == screen.route
                         NavigationBarItem(
                             selected = selected,
                             onClick = {
@@ -127,7 +96,8 @@ fun MainScreen(
                                     contentDescription = screen.title
                                 )
                             },
-                            alwaysShowLabel = false
+                            label = { Text(screen.title) },
+                            alwaysShowLabel = true
                         )
                     }
                 }
@@ -179,6 +149,14 @@ fun MainScreen(
                 MessagesScreen(onOpenConversation = { conversationId, otherUid ->
                     navController.navigate("chat/$conversationId/$otherUid")
                 })
+            }
+            composable(Screen.More.route) {
+                MoreScreen(
+                    role = role,
+                    onOpenRoute = { screen -> navController.navigate(screen.route) },
+                    onOpenProfile = { rootNavController.navigate(RootScreen.Profile.route) },
+                    onOpenAbout = { rootNavController.navigate(RootScreen.Info.route) }
+                )
             }
             composable(ROUTE_CHAT) {
                 ChatScreen(onBack = { navController.popBackStack() })

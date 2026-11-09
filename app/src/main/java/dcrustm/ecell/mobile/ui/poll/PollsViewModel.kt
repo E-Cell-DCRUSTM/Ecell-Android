@@ -10,10 +10,14 @@ import dcrustm.ecell.mobile.domain.repository.PollRepository
 import dcrustm.ecell.mobile.session.UserSessionManager
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
+import dcrustm.ecell.mobile.ui.state.ListUiState
+import dcrustm.ecell.mobile.ui.state.asListUiState
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -25,12 +29,17 @@ class PollsViewModel @Inject constructor(
 ) : ViewModel() {
 
     val currentUser: StateFlow<Member?> = session.currentUser
-    val polls: StateFlow<List<Poll>> = session.currentUser
+    private val refreshRequest = MutableStateFlow(0)
+
+    val pollState: StateFlow<ListUiState<Poll>> = combine(session.currentUser, refreshRequest) { user, _ -> user }
         .flatMapLatest { member ->
             if (member?.isApproved == true) pollRepository.observePolls(member)
             else flowOf(emptyList())
         }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+        .asListUiState("Could not load polls. Please try again.")
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ListUiState())
+
+    fun retry() { refreshRequest.value += 1 }
 
     val canCreate: Boolean
         get() = session.isCoordinator || session.isHead

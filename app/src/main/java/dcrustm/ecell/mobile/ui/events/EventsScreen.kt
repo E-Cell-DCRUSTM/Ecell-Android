@@ -39,6 +39,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import dcrustm.ecell.mobile.domain.model.EventItem
 import dcrustm.ecell.mobile.ui.home.CommitteeBadge
+import dcrustm.ecell.mobile.ui.state.LoadingPanel
+import dcrustm.ecell.mobile.ui.state.RetryPanel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -46,7 +48,8 @@ fun EventsScreen(
     onCreateClick: () -> Unit = {},
     viewModel: EventsViewModel = hiltViewModel()
 ) {
-    val events by viewModel.upcomingEvents.collectAsState()
+    val eventState by viewModel.eventState.collectAsState()
+    val events = eventState.items
     val grouped = events.groupBy { it.dayKey }
 
     Scaffold(
@@ -68,7 +71,15 @@ fun EventsScreen(
             }
         }
     ) { innerPadding ->
-        if (events.isEmpty()) {
+        if (eventState.isLoading) {
+            LoadingPanel(Modifier.padding(innerPadding))
+        } else if (eventState.errorMessage != null) {
+            RetryPanel(
+                message = eventState.errorMessage ?: "Could not load events.",
+                onRetry = viewModel::retry,
+                modifier = Modifier.padding(innerPadding)
+            )
+        } else if (events.isEmpty()) {
             Box(
                 Modifier.fillMaxSize().padding(innerPadding),
                 contentAlignment = Alignment.Center

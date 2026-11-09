@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -130,10 +131,11 @@ fun CreateEventScreen(
 
             OutlinedTextField(
                 value = title,
-                onValueChange = { title = it },
+                onValueChange = { if (it.length <= 120) title = it },
                 modifier = Modifier.fillMaxWidth(),
                 label = { Text("Title") },
                 singleLine = true,
+                supportingText = { Text("${title.length}/120") },
                 shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
@@ -142,9 +144,10 @@ fun CreateEventScreen(
 
             OutlinedTextField(
                 value = description,
-                onValueChange = { description = it },
-                modifier = Modifier.fillMaxWidth().height(100.dp),
+                onValueChange = { if (it.length <= 2000) description = it },
+                modifier = Modifier.fillMaxWidth().heightIn(min = 100.dp),
                 label = { Text("Description (optional)") },
+                supportingText = { Text("${description.length}/2000") },
                 shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
@@ -190,11 +193,12 @@ fun CreateEventScreen(
             if (isVirtual) {
                 OutlinedTextField(
                     value = meetingLink,
-                    onValueChange = { meetingLink = it },
+                    onValueChange = { if (it.length <= 2048) meetingLink = it },
                     modifier = Modifier.fillMaxWidth(),
                     label = { Text("Meeting link") },
                     placeholder = { Text("https://meet.google.com/…") },
                     singleLine = true,
+                    supportingText = { Text("${meetingLink.length}/2048") },
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
@@ -203,11 +207,12 @@ fun CreateEventScreen(
             } else {
                 OutlinedTextField(
                     value = location,
-                    onValueChange = { location = it },
+                    onValueChange = { if (it.length <= 200) location = it },
                     modifier = Modifier.fillMaxWidth(),
                     label = { Text("Location") },
                     placeholder = { Text("Seminar Hall, Block B") },
                     singleLine = true,
+                    supportingText = { Text("${location.length}/200") },
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant

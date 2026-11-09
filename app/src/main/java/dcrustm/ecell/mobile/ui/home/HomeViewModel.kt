@@ -10,10 +10,14 @@ import dcrustm.ecell.mobile.session.UserSessionManager
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import dcrustm.ecell.mobile.ui.state.ListUiState
+import dcrustm.ecell.mobile.ui.state.asListUiState
 import javax.inject.Inject
 
 @HiltViewModel
@@ -25,7 +29,12 @@ class HomeViewModel @Inject constructor(
 
     val currentUser: StateFlow<Member?> = sessionManager.currentUser
 
-    val announcements: StateFlow<List<Announcement>> = sessionManager.currentUser
+    private val refreshRequest = MutableStateFlow(0)
+
+    val announcementState: StateFlow<ListUiState<Announcement>> = combine(
+        sessionManager.currentUser,
+        refreshRequest
+    ) { user, _ -> user }
         .flatMapLatest { user ->
             if (user?.isApproved == true) announcementRepository.observeAnnouncements(user)
             else flowOf(emptyList())
@@ -33,5 +42,8 @@ class HomeViewModel @Inject constructor(
         .map { announcements -> announcements.sortedWith(
             compareByDescending<Announcement> { it.isPinned }.thenByDescending { it.createdAt }
         ) }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+        .asListUiState("Could not load announcements. Please try again.")
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ListUiState())
+
+    fun retry() { refreshRequest.value += 1 }
 }

@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -106,10 +107,11 @@ fun PostAnnouncementScreen(
 
             OutlinedTextField(
                 value = title,
-                onValueChange = { title = it },
+                onValueChange = { if (it.length <= 120) title = it },
                 modifier = Modifier.fillMaxWidth(),
                 label = { Text("Title") },
                 singleLine = true,
+                supportingText = { Text("${title.length}/120") },
                 shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
@@ -118,11 +120,12 @@ fun PostAnnouncementScreen(
 
             OutlinedTextField(
                 value = body,
-                onValueChange = { body = it },
+                onValueChange = { if (it.length <= 5000) body = it },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(160.dp),
+                    .heightIn(min = 160.dp),
                 label = { Text("Message") },
+                supportingText = { Text("${body.length}/5000") },
                 shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant

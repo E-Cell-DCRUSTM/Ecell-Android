@@ -47,11 +47,14 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import dcrustm.ecell.mobile.domain.model.Complaint
 import dcrustm.ecell.mobile.domain.model.ComplaintStatus
+import dcrustm.ecell.mobile.ui.state.LoadingPanel
+import dcrustm.ecell.mobile.ui.state.RetryPanel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ComplaintInboxScreen(viewModel: ComplaintInboxViewModel = hiltViewModel()) {
-    val complaints by viewModel.complaints.collectAsState()
+    val complaintState by viewModel.complaintState.collectAsState()
+    val complaints = complaintState.items
     val open = complaints.count { it.status == ComplaintStatus.OPEN }
     var selectedComplaint by remember { mutableStateOf<Complaint?>(null) }
     val errorMessage by viewModel.errorMessage.collectAsState()
@@ -82,7 +85,15 @@ fun ComplaintInboxScreen(viewModel: ComplaintInboxViewModel = hiltViewModel()) {
             )
         }
     ) { innerPadding ->
-        if (complaints.isEmpty()) {
+        if (complaintState.isLoading) {
+            LoadingPanel(Modifier.padding(innerPadding))
+        } else if (complaintState.errorMessage != null) {
+            RetryPanel(
+                message = complaintState.errorMessage ?: "Could not load complaints.",
+                onRetry = viewModel::retry,
+                modifier = Modifier.padding(innerPadding)
+            )
+        } else if (complaints.isEmpty()) {
             Box(Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
                 Text("No complaints yet", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
@@ -166,10 +177,11 @@ private fun ComplaintResponseDialog(
 
                 OutlinedTextField(
                     value = response,
-                    onValueChange = { response = it },
+                    onValueChange = { if (it.length <= 5000) response = it },
                     label = { Text("Response") },
                     placeholder = { Text("Visible to the member who filed this") },
-                    modifier = Modifier.fillMaxWidth().height(120.dp)
+                    modifier = Modifier.fillMaxWidth().height(120.dp),
+                    supportingText = { Text("${response.length}/5000") }
                 )
             }
         },

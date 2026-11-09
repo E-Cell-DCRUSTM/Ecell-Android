@@ -10,11 +10,15 @@ import dcrustm.ecell.mobile.domain.repository.MemberRepository
 import dcrustm.ecell.mobile.session.UserSessionManager
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.map
+import dcrustm.ecell.mobile.ui.state.ListUiState
+import dcrustm.ecell.mobile.ui.state.asListUiState
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -27,14 +31,27 @@ class MessagesViewModel @Inject constructor(
 ) : ViewModel() {
 
     val currentUser: StateFlow<Member?> = session.currentUser
-    val approvedMembers: StateFlow<List<Member>> = memberRepository.observeApprovedMembers()
+    private val refreshRequest = MutableStateFlow(0)
+    val approvedMemberState: StateFlow<ListUiState<Member>> = refreshRequest.flatMapLatest {
+        memberRepository.observeApprovedMembers()
+            .asListUiState("Could not load members. Please try again.")
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ListUiState())
+    val approvedMembers: StateFlow<List<Member>> = approvedMemberState.map { it.items }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-    val conversations: StateFlow<List<Conversation>> = session.currentUser
-        .flatMapLatest { member ->
-            if (member?.isApproved == true) chatRepository.observeConversations(member.uid)
-            else flowOf(emptyList())
-        }
+
+    val conversationState: StateFlow<ListUiState<Conversation>> = combine(
+        session.currentUser,
+        refreshRequest
+    ) { member, _ -> member }.flatMapLatest { member ->
+        if (member?.isApproved == true) chatRepository.observeConversations(member.uid)
+            .asListUiState("Could not load conversations. Please try again.")
+        else flowOf(emptyList<Conversation>()).asListUiState("Could not load conversations.")
+    }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ListUiState())
+    val conversations: StateFlow<List<Conversation>> = conversationState.map { it.items }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun retry() { refreshRequest.value += 1 }
 
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error

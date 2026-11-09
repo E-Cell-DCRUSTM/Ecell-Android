@@ -11,16 +11,26 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.flatMapLatest
+import dcrustm.ecell.mobile.ui.state.ListUiState
+import dcrustm.ecell.mobile.ui.state.asListUiState
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
+@OptIn(ExperimentalCoroutinesApi::class)
 class ComplaintInboxViewModel @Inject constructor(
     private val complaintRepository: ComplaintRepository
 ) : ViewModel() {
 
-    val complaints: StateFlow<List<Complaint>> = complaintRepository.observeAllComplaints()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    private val refreshRequest = MutableStateFlow(0)
+    val complaintState: StateFlow<ListUiState<Complaint>> = refreshRequest.flatMapLatest {
+        complaintRepository.observeAllComplaints()
+            .asListUiState("Could not load complaints. Please try again.")
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ListUiState())
+
+    fun retry() { refreshRequest.value += 1 }
 
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()

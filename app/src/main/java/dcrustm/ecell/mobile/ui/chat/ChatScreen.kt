@@ -40,11 +40,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import dcrustm.ecell.mobile.ui.state.LoadingPanel
+import dcrustm.ecell.mobile.ui.state.RetryPanel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen(onBack: () -> Unit, viewModel: ChatViewModel = hiltViewModel()) {
-    val messages by viewModel.messages.collectAsState()
+    val messageState by viewModel.messageState.collectAsState()
+    val messages = messageState.items
     val currentUser by viewModel.currentUser.collectAsState()
     val other by viewModel.otherMember.collectAsState()
     val error by viewModel.error.collectAsState()
@@ -90,7 +93,15 @@ fun ChatScreen(onBack: () -> Unit, viewModel: ChatViewModel = hiltViewModel()) {
             }
         }
     ) { padding ->
-        if (messages.isEmpty()) {
+        if (messageState.isLoading) {
+            LoadingPanel(Modifier.fillMaxSize().padding(padding))
+        } else if (messageState.errorMessage != null) {
+            RetryPanel(
+                messageState.errorMessage ?: "Could not load this conversation.",
+                viewModel::retry,
+                Modifier.fillMaxSize().padding(padding)
+            )
+        } else if (messages.isEmpty()) {
             Column(Modifier.fillMaxSize().padding(padding).padding(24.dp),
                 verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
                 Text("Your conversation starts here.", textAlign = TextAlign.Center,

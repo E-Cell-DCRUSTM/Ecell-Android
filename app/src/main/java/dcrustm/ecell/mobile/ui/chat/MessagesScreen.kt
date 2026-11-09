@@ -42,6 +42,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import dcrustm.ecell.mobile.domain.model.Conversation
 import dcrustm.ecell.mobile.domain.model.Member
 import dcrustm.ecell.mobile.ui.home.InitialsAvatar
+import dcrustm.ecell.mobile.ui.state.LoadingPanel
+import dcrustm.ecell.mobile.ui.state.RetryPanel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -50,8 +52,10 @@ fun MessagesScreen(
     viewModel: MessagesViewModel = hiltViewModel()
 ) {
     val currentUser by viewModel.currentUser.collectAsState()
-    val members by viewModel.approvedMembers.collectAsState()
-    val conversations by viewModel.conversations.collectAsState()
+    val memberState by viewModel.approvedMemberState.collectAsState()
+    val members = memberState.items
+    val conversationState by viewModel.conversationState.collectAsState()
+    val conversations = conversationState.items
     val error by viewModel.error.collectAsState()
     var showMembers by remember { mutableStateOf(false) }
 
@@ -65,7 +69,15 @@ fun MessagesScreen(
             )
         }
     ) { padding ->
-        if (conversations.isEmpty()) {
+        if (conversationState.isLoading) {
+            LoadingPanel(Modifier.fillMaxSize().padding(padding))
+        } else if (conversationState.errorMessage != null) {
+            RetryPanel(
+                conversationState.errorMessage ?: "Could not load conversations.",
+                viewModel::retry,
+                Modifier.fillMaxSize().padding(padding)
+            )
+        } else if (conversations.isEmpty()) {
             Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
                 Text("Start a private chat with an E-Cell member",
                     style = MaterialTheme.typography.bodyMedium,
@@ -92,6 +104,9 @@ fun MessagesScreen(
     if (showMembers) {
         MemberPickerDialog(
             members = members.filter { it.uid != currentUser?.uid },
+            loading = memberState.isLoading,
+            errorMessage = memberState.errorMessage,
+            onRetry = viewModel::retry,
             onDismiss = { showMembers = false },
             onSelect = { member ->
                 showMembers = false
@@ -143,6 +158,9 @@ private fun ConversationRow(
 @Composable
 private fun MemberPickerDialog(
     members: List<Member>,
+    loading: Boolean,
+    errorMessage: String?,
+    onRetry: () -> Unit,
     onDismiss: () -> Unit,
     onSelect: (Member) -> Unit
 ) {
@@ -155,7 +173,14 @@ private fun MemberPickerDialog(
             Column(Modifier.fillMaxWidth()) {
                 OutlinedTextField(query, { query = it }, label = { Text("Find a member") }, singleLine = true)
                 Spacer(Modifier.height(8.dp))
-                if (members.isEmpty()) {
+                if (loading) {
+                    androidx.compose.material3.CircularProgressIndicator()
+                } else if (errorMessage != null) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(errorMessage, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        TextButton(onClick = onRetry) { Text("Retry") }
+                    }
+                } else if (members.isEmpty()) {
                     Text("No other approved members are available yet.",
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 } else if (filtered.isEmpty()) {

@@ -8,6 +8,7 @@ import androidx.compose.material.icons.filled.Feedback
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Inbox
 import androidx.compose.material.icons.filled.ManageAccounts
+import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.HowToVote
 import androidx.compose.material.icons.outlined.CalendarMonth
@@ -17,6 +18,7 @@ import androidx.compose.material.icons.outlined.Feedback
 import androidx.compose.material.icons.outlined.Group
 import androidx.compose.material.icons.outlined.Inbox
 import androidx.compose.material.icons.outlined.ManageAccounts
+import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material.icons.outlined.People
 import androidx.compose.material.icons.outlined.HowToVote
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -77,16 +79,27 @@ sealed class Screen(
         "messages", "Messages",
         Icons.Filled.ChatBubble, Icons.Outlined.ChatBubbleOutline
     )
+
+    object More : Screen(
+        "more", "More",
+        Icons.Filled.MoreHoriz, Icons.Outlined.MoreHoriz
+    )
 }
 
+/** Five consistently placed destinations keep the bottom bar usable on phones. */
 fun screensForRole(role: ROLE): List<Screen> = listOf(
     Screen.Home,
     Screen.Events,
+    Screen.Polls,
+    Screen.Messages,
+    Screen.More
+).filter { role in it.visibleTo }
+
+/** Less frequent, role-specific destinations live under More. */
+fun moreScreensForRole(role: ROLE): List<Screen> = listOf(
     Screen.Directory,
     Screen.MyCommittee,
     Screen.Complaints,
     Screen.Members,
-    Screen.Inbox,
-    Screen.Polls,
-    Screen.Messages
+    Screen.Inbox
 ).filter { role in it.visibleTo }

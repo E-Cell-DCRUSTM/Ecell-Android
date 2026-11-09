@@ -49,6 +49,8 @@ import dcrustm.ecell.mobile.domain.model.Committee
 import dcrustm.ecell.mobile.domain.model.Member
 import dcrustm.ecell.mobile.domain.model.ROLE
 import dcrustm.ecell.mobile.ui.home.InitialsAvatar
+import dcrustm.ecell.mobile.ui.state.LoadingPanel
+import dcrustm.ecell.mobile.ui.state.RetryPanel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -56,7 +58,8 @@ fun DirectoryScreen(
     onMemberClick: (String) -> Unit = {},
     viewModel: DirectoryViewModel = hiltViewModel()
 ) {
-    val members by viewModel.filteredMembers.collectAsState()
+    val memberState by viewModel.filteredState.collectAsState()
+    val members = memberState.items
     var query by remember { mutableStateOf("") }
     var selectedCommittee by remember { mutableStateOf<Committee?>(null) }
     var selectedYear by remember { mutableStateOf<Int?>(null) }
@@ -128,7 +131,15 @@ fun DirectoryScreen(
                 }
             }
 
-            if (members.isEmpty()) {
+            if (memberState.isLoading) {
+                LoadingPanel(Modifier.weight(1f))
+            } else if (memberState.errorMessage != null) {
+                RetryPanel(
+                    message = memberState.errorMessage ?: "Could not load the directory.",
+                    onRetry = viewModel::retry,
+                    modifier = Modifier.weight(1f)
+                )
+            } else if (members.isEmpty()) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text("No members found", style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -164,10 +175,11 @@ fun DirectoryScreen(
 fun MemberRow(
     member: Member,
     showContact: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Surface(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
             .clickable(onClick = onClick),

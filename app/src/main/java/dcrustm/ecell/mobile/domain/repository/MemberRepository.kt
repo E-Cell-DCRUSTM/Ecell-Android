@@ -19,6 +19,9 @@ interface MemberRepository {
 
     suspend fun approveMember(uid: String, committee: Committee, role: ROLE)
 
+    /** Coordinator-only assignment of an already approved non-coordinator member. */
+    suspend fun assignMember(uid: String, committee: Committee, role: ROLE)
+
     suspend fun rejectMember(uid: String)
 
     suspend fun updateOwnProfile(uid: String, phone: String, bio: String)

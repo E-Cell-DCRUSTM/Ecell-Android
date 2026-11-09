@@ -44,6 +44,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import dcrustm.ecell.mobile.domain.model.Announcement
 import dcrustm.ecell.mobile.domain.model.ROLE
+import dcrustm.ecell.mobile.ui.state.LoadingPanel
+import dcrustm.ecell.mobile.ui.state.RetryPanel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,7 +53,8 @@ fun HomeScreen(
     onPostClick: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel()
 ) {
-    val announcements by viewModel.announcements.collectAsState()
+    val announcementState by viewModel.announcementState.collectAsState()
+    val announcements = announcementState.items
     val currentUser by viewModel.currentUser.collectAsState()
     val canPost = currentUser?.role == ROLE.COORDINATOR || currentUser?.role == ROLE.COMMITTEE_HEAD
 
@@ -86,7 +89,15 @@ fun HomeScreen(
             }
         }
     ) { innerPadding ->
-        if (announcements.isEmpty()) {
+        if (announcementState.isLoading) {
+            LoadingPanel(Modifier.padding(innerPadding))
+        } else if (announcementState.errorMessage != null) {
+            RetryPanel(
+                message = announcementState.errorMessage ?: "Could not load announcements.",
+                onRetry = viewModel::retry,
+                modifier = Modifier.padding(innerPadding)
+            )
+        } else if (announcements.isEmpty()) {
             EmptyAnnouncementsState(modifier = Modifier.padding(innerPadding))
         } else {
             LazyColumn(

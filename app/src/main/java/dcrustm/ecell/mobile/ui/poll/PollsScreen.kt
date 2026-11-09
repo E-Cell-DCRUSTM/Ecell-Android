@@ -9,8 +9,11 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -45,17 +48,22 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import dcrustm.ecell.mobile.domain.model.Committee
 import dcrustm.ecell.mobile.domain.model.Poll
 import dcrustm.ecell.mobile.domain.model.ROLE
+import dcrustm.ecell.mobile.ui.state.LoadingPanel
+import dcrustm.ecell.mobile.ui.state.RetryPanel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PollsScreen(viewModel: PollsViewModel = hiltViewModel()) {
-    val polls by viewModel.polls.collectAsState()
+    val pollState by viewModel.pollState.collectAsState()
+    val polls = pollState.items
     val user by viewModel.currentUser.collectAsState()
     val error by viewModel.error.collectAsState()
     val selectedOptions = remember { mutableStateMapOf<String, Int>() }
@@ -74,7 +82,15 @@ fun PollsScreen(viewModel: PollsViewModel = hiltViewModel()) {
             }
         }
     ) { padding ->
-        if (polls.isEmpty()) {
+        if (pollState.isLoading) {
+            LoadingPanel(Modifier.fillMaxSize().padding(padding))
+        } else if (pollState.errorMessage != null) {
+            RetryPanel(
+                message = pollState.errorMessage ?: "Could not load polls.",
+                onRetry = viewModel::retry,
+                modifier = Modifier.fillMaxSize().padding(padding)
+            )
+        } else if (polls.isEmpty()) {
             Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
                 Text("No polls yet", style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -181,7 +197,11 @@ private fun PollCard(
                     poll.options.forEachIndexed { index, option ->
                         Row(verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.fillMaxWidth()) {
-                            RadioButton(selected = selectedOption == index, onClick = { onSelect(index) })
+                            RadioButton(
+                                selected = selectedOption == index,
+                                onClick = { onSelect(index) },
+                                modifier = Modifier.semantics { contentDescription = option }
+                            )
                             Text(option, style = MaterialTheme.typography.bodyMedium)
                         }
                     }
@@ -231,22 +251,38 @@ private fun CreatePollDialog(
         listOf("ALL") + Committee.values().filter { it != Committee.NONE }.map { it.name }
     } else listOf(user?.committee?.name ?: "ALL")
     val options = choices.lines().map(String::trim).filter(String::isNotEmpty).distinct()
+    val choicesValid = options.size in 2..8 && options.all { it.length <= 80 }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Create a poll") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(
+                modifier = Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 Text(
                     "Approved members can vote once. Other members cannot see who chose each option, and results stay hidden until you close the poll.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                OutlinedTextField(title, { title = it }, label = { Text("Title") }, singleLine = true)
-                OutlinedTextField(question, { question = it }, label = { Text("Question") })
                 OutlinedTextField(
-                    choices, { choices = it }, label = { Text("Options (one per line)") },
-                    minLines = 3, supportingText = { Text("Add 2 to 8 choices") }
+                    title, { if (it.length <= 120) title = it }, label = { Text("Title") },
+                    singleLine = true, supportingText = { Text("${title.length}/120") }
+                )
+                OutlinedTextField(
+                    question, { if (it.length <= 500) question = it },
+                    label = { Text("Question") }, supportingText = { Text("${question.length}/500") }
+                )
+                OutlinedTextField(
+                    choices,
+                    { value ->
+                        val lines = value.lines()
+                        if (lines.size <= 8 && lines.all { it.length <= 80 }) choices = value
+                    },
+                    label = { Text("Options (one per line)") },
+                    minLines = 3,
+                    supportingText = { Text("${options.size}/8 choices · each up to 80 characters") }
                 )
                 Box {
                     OutlinedButton(onClick = { menuOpen = true }) {
@@ -267,7 +303,7 @@ private fun CreatePollDialog(
         },
         confirmButton = {
             TextButton(
-                enabled = title.isNotBlank() && question.isNotBlank() && options.size in 2..8,
+                enabled = title.isNotBlank() && question.isNotBlank() && choicesValid,
                 onClick = { onCreate(title, question, options, audience) }
             ) { Text("Create") }
         },

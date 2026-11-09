@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -97,14 +98,17 @@ fun ComplaintScreen(
                 Spacer(Modifier.height(6.dp))
                 OutlinedTextField(
                     value = title,
-                onValueChange = { if (it.length <= 120) title = it; titleError = "" },
+                    onValueChange = { value ->
+                        if (value.length <= 120) title = value
+                        titleError = ""
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     placeholder = { Text("Brief summary of the issue") },
                     singleLine = true,
                     isError = titleError.isNotBlank(),
                     supportingText = if (titleError.isNotBlank()) {
                         { Text(titleError, color = MaterialTheme.colorScheme.error) }
-                    } else null,
+                    } else { { Text("${title.length}/120") } },
                     shape = RoundedCornerShape(10.dp)
                 )
 
@@ -115,15 +119,18 @@ fun ComplaintScreen(
                 Spacer(Modifier.height(6.dp))
                 OutlinedTextField(
                     value = body,
-                onValueChange = { if (it.length <= 5000) body = it; bodyError = "" },
+                    onValueChange = { value ->
+                        if (value.length <= 5000) body = value
+                        bodyError = ""
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(160.dp),
+                        .heightIn(min = 160.dp),
                     placeholder = { Text("Describe the issue in detail. Be specific about what happened, when, and who was involved.") },
                     isError = bodyError.isNotBlank(),
                     supportingText = if (bodyError.isNotBlank()) {
                         { Text(bodyError, color = MaterialTheme.colorScheme.error) }
-                    } else null,
+                    } else { { Text("${body.length}/5000") } },
                     shape = RoundedCornerShape(10.dp)
                 )
 

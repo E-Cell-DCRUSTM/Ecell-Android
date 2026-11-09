@@ -83,9 +83,11 @@ const seed = async () => env.withSecurityRulesDisabled(async (context) => {
     setDoc(doc(db, "users/carol"), profile("carol", "DESIGN")),
     setDoc(doc(db, "users/events-head"), profile("events-head", "EVENTS", "COMMITTEE_HEAD")),
     setDoc(doc(db, "users/corporate-head"), profile("corporate-head", "CORPORATE", "COMMITTEE_HEAD")),
+    setDoc(doc(db, "users/head-applicant"), profile("head-applicant", "NONE", "PENDING", false)),
     setDoc(doc(db, "users/coordinator"), profile("coordinator", "NONE", "COORDINATOR")),
     setDoc(doc(db, "users/unapproved"), profile("unapproved", "NONE", "PENDING", false)),
     setDoc(doc(db, "userContacts/alice"), { email: "alice@example.invalid", phone: "555-0100", committee: "EVENTS" }),
+    setDoc(doc(db, "userContacts/head-applicant"), { email: "head@example.invalid", phone: "", committee: "NONE" }),
     setDoc(doc(db, "userContacts/unapproved"), { email: "unapproved@example.invalid", phone: "", committee: "NONE" }),
     setDoc(doc(db, "announcements/events"), { title: "Events", committee: "EVENTS" }),
     setDoc(doc(db, "announcements/corporate"), { title: "Corporate", committee: "CORPORATE" }),
@@ -193,6 +195,16 @@ try {
     batch.set(doc(coordinator, "userContacts/pending"), { committee: "EVENTS" }, { merge: true });
     await batch.commit();
   });
+  await check("coordinator can approve an applicant as committee head", true, async () => {
+    const batch = writeBatch(coordinator);
+    batch.update(doc(coordinator, "users/head-applicant"), {
+      isApproved: true,
+      committee: "DESIGN",
+      role: "COMMITTEE_HEAD",
+    });
+    batch.set(doc(coordinator, "userContacts/head-applicant"), { committee: "DESIGN" }, { merge: true });
+    await batch.commit();
+  });
   await check("coordinator cannot promote a member to coordinator in-app", false, () =>
     updateDoc(doc(coordinator, "users/alice"), {
       isApproved: true,
@@ -211,6 +223,8 @@ try {
     updateDoc(doc(alice, "users/alice"), { role: "COORDINATOR" }));
   await check("member can update their own profile fields", true, () =>
     updateDoc(doc(alice, "users/alice"), { bio: "A short member bio" }));
+  await check("committee head cannot reassign another member", false, () =>
+    updateDoc(doc(eventsHead, "users/bob"), { committee: "EVENTS", role: "MEMBER" }));
 
   await check("same-committee announcement get is allowed", true, () =>
     getDoc(doc(alice, "announcements/events")));
@@ -443,6 +457,16 @@ try {
       text: "spoofed",
       sentAt: serverTimestamp(),
     }));
+
+  await check("coordinator can reassign a member and update their contact committee atomically", true, async () => {
+    const batch = writeBatch(coordinator);
+    batch.update(doc(coordinator, "users/alice"), {
+      committee: "CORPORATE",
+      role: "MEMBER",
+    });
+    batch.set(doc(coordinator, "userContacts/alice"), { committee: "CORPORATE" }, { merge: true });
+    await batch.commit();
+  });
 
   await check("coordinator cannot delete an approved member profile", false, () =>
     deleteDoc(doc(coordinator, "users/bob")));

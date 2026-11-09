@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
@@ -25,6 +26,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -91,8 +93,8 @@ fun PendingApprovalsScreen(viewModel: ManageMembersViewModel = hiltViewModel()) 
                 items(pending, key = { it.uid }) { member ->
                     PendingMemberCard(
                         member = member,
-                        onApprove = { committee -> viewModel.approve(member.uid, committee) },
-                        onReject = { viewModel.reject(member.uid) }
+                        onApprove = { committee, role -> viewModel.approve(member.uid, member.name, committee, role) },
+                        onReject = { viewModel.reject(member.uid, member.name) }
                     )
                 }
             }
@@ -103,11 +105,14 @@ fun PendingApprovalsScreen(viewModel: ManageMembersViewModel = hiltViewModel()) 
 @Composable
 internal fun PendingMemberCard(
     member: Member,
-    onApprove: (Committee) -> Unit,
+    onApprove: (Committee, ROLE) -> Unit,
     onReject: () -> Unit
 ) {
     var showCommitteeMenu by remember { mutableStateOf(false) }
+    var showRoleMenu by remember { mutableStateOf(false) }
+    var showRejectConfirmation by remember { mutableStateOf(false) }
     var assignedCommittee by remember { mutableStateOf(member.committee) }
+    var assignedRole by remember { mutableStateOf(ROLE.MEMBER) }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -166,11 +171,40 @@ internal fun PendingMemberCard(
                 }
             }
 
+            Spacer(Modifier.height(8.dp))
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Role: ", style = MaterialTheme.typography.labelMedium)
+                Box {
+                    OutlinedButton(
+                        onClick = { showRoleMenu = true },
+                        shape = RoundedCornerShape(8.dp),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            if (assignedRole == ROLE.COMMITTEE_HEAD) "Committee head" else "Member",
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = showRoleMenu,
+                        onDismissRequest = { showRoleMenu = false }
+                    ) {
+                        listOf(ROLE.MEMBER, ROLE.COMMITTEE_HEAD).forEach { role ->
+                            DropdownMenuItem(
+                                text = { Text(if (role == ROLE.COMMITTEE_HEAD) "Committee head" else "Member") },
+                                onClick = { assignedRole = role; showRoleMenu = false }
+                            )
+                        }
+                    }
+                }
+            }
+
             Spacer(Modifier.height(14.dp))
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(
-                    onClick = onReject,
+                    onClick = { showRejectConfirmation = true },
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(10.dp),
                     colors = ButtonDefaults.outlinedButtonColors(
@@ -180,7 +214,7 @@ internal fun PendingMemberCard(
                     Text("Decline")
                 }
                 Button(
-                    onClick = { onApprove(assignedCommittee) },
+                    onClick = { onApprove(assignedCommittee, assignedRole) },
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(10.dp)
                 ) {
@@ -188,6 +222,25 @@ internal fun PendingMemberCard(
                 }
             }
         }
+    }
+
+    if (showRejectConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showRejectConfirmation = false },
+            title = { Text("Decline ${member.name}'s request?") },
+            text = {
+                Text("Their pending profile and contact record will be removed. Their sign-in account stays active, so they can sign in again to submit a new request.")
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    showRejectConfirmation = false
+                    onReject()
+                }) { Text("Decline request") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRejectConfirmation = false }) { Text("Keep request") }
+            }
+        )
     }
 }
 

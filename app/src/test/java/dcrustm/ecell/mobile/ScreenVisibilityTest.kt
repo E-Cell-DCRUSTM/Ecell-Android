@@ -2,6 +2,7 @@ package dcrustm.ecell.mobile
 
 import dcrustm.ecell.mobile.domain.model.ROLE
 import dcrustm.ecell.mobile.navigation.Screen
+import dcrustm.ecell.mobile.navigation.moreScreensForRole
 import dcrustm.ecell.mobile.navigation.screensForRole
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -11,29 +12,39 @@ class ScreenVisibilityTest {
     @Test
     fun pendingMembersCannotOpenTheApprovedMemberWorkspace() {
         assertEquals(emptySet<String>(), screensForRole(ROLE.PENDING).map(Screen::route).toSet())
+        assertEquals(emptySet<String>(), moreScreensForRole(ROLE.PENDING).map(Screen::route).toSet())
     }
 
     @Test
-    fun ordinaryMembersSeeMemberFeaturesButNoCoordinatorOrHeadTools() {
+    fun everyApprovedRoleHasFiveLabeledPrimaryDestinations() {
+        val expected = setOf("home", "events", "polls", "messages", "more")
+        assertEquals(expected, screensForRole(ROLE.MEMBER).map(Screen::route).toSet())
+        assertEquals(expected, screensForRole(ROLE.COMMITTEE_HEAD).map(Screen::route).toSet())
+        assertEquals(expected, screensForRole(ROLE.COORDINATOR).map(Screen::route).toSet())
+        assertEquals(5, screensForRole(ROLE.COORDINATOR).size)
+    }
+
+    @Test
+    fun ordinaryMembersSeeOnlyMemberToolsUnderMore() {
         assertEquals(
-            setOf("home", "events", "directory", "complaints", "polls", "messages"),
-            screensForRole(ROLE.MEMBER).map(Screen::route).toSet(),
+            setOf("directory", "complaints"),
+            moreScreensForRole(ROLE.MEMBER).map(Screen::route).toSet(),
         )
     }
 
     @Test
-    fun committeeHeadsSeeTheirCommitteeToolsWithoutCoordinatorInbox() {
+    fun committeeHeadsSeeCommitteeToolsWithoutCoordinatorInbox() {
         assertEquals(
-            setOf("home", "events", "directory", "my_committee", "complaints", "polls", "messages"),
-            screensForRole(ROLE.COMMITTEE_HEAD).map(Screen::route).toSet(),
+            setOf("directory", "my_committee", "complaints"),
+            moreScreensForRole(ROLE.COMMITTEE_HEAD).map(Screen::route).toSet(),
         )
     }
 
     @Test
     fun coordinatorsSeeApprovalAndComplaintManagementRoutes() {
         assertEquals(
-            setOf("home", "events", "directory", "members", "inbox", "polls", "messages"),
-            screensForRole(ROLE.COORDINATOR).map(Screen::route).toSet(),
+            setOf("directory", "members", "inbox"),
+            moreScreensForRole(ROLE.COORDINATOR).map(Screen::route).toSet(),
         )
     }
 }

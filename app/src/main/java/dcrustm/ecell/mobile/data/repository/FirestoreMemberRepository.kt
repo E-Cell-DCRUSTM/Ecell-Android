@@ -56,12 +56,35 @@ class FirestoreMemberRepository @Inject constructor(
         }
 
     override suspend fun approveMember(uid: String, committee: Committee, role: ROLE) {
+        require(committee != Committee.NONE) { "Choose a committee before approving this member." }
+        require(role == ROLE.MEMBER || role == ROLE.COMMITTEE_HEAD) {
+            "A coordinator role must be granted outside the app."
+        }
         val batch = firestore.batch()
         batch.update(usersRef.document(uid), mapOf(
                 "isApproved" to true,
                 "committee" to committee.name,
                 "role" to role.name
             ))
+        batch.set(
+            firestore.collection("userContacts").document(uid),
+            mapOf("committee" to committee.name),
+            SetOptions.merge()
+        )
+        batch.commit().awaitResult()
+    }
+
+    override suspend fun assignMember(uid: String, committee: Committee, role: ROLE) {
+        require(committee != Committee.NONE) { "Choose a committee for this member." }
+        require(role == ROLE.MEMBER || role == ROLE.COMMITTEE_HEAD) {
+            "Coordinator roles cannot be assigned from this screen."
+        }
+        val batch = firestore.batch()
+        batch.update(usersRef.document(uid), mapOf(
+            "isApproved" to true,
+            "committee" to committee.name,
+            "role" to role.name
+        ))
         batch.set(
             firestore.collection("userContacts").document(uid),
             mapOf("committee" to committee.name),

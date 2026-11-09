@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.rememberScrollState
@@ -133,11 +134,12 @@ fun ProfileScreen(
 
                 OutlinedTextField(
                     value = phone,
-                    onValueChange = { phone = it },
+                    onValueChange = { if (it.length <= 32) phone = it },
                     modifier = Modifier.fillMaxWidth(),
                     label = { Text("Phone") },
                     placeholder = { Text("Visible to your committee head and coordinator") },
                     singleLine = true,
+                    supportingText = { Text("${phone.length}/32") },
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
@@ -148,11 +150,12 @@ fun ProfileScreen(
 
                 OutlinedTextField(
                     value = bio,
-                    onValueChange = { bio = it },
+                    onValueChange = { if (it.length <= 1000) bio = it },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(120.dp),
+                        .heightIn(min = 120.dp),
                     label = { Text("Bio") },
+                    supportingText = { Text("${bio.length}/1000") },
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
