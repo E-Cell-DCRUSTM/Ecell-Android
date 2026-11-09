@@ -51,7 +51,52 @@ service cloud.firestore {
     function validContentAudience(data) {
       return data.keys().hasAll(['committee'])
              && (data.committee == null
-                 || (validCommittee(data.committee) && data.committee != 'NONE'));
+                 || (data.committee is string
+                     && validCommittee(data.committee)
+                     && data.committee != 'NONE'));
+    }
+
+    function validAnnouncement(data) {
+      return data.keys().hasAll([
+               'title', 'body', 'authorUid', 'authorName', 'committee',
+               'createdAt', 'isPinned', 'attachmentUrl'
+             ])
+             && data.keys().hasOnly([
+               'title', 'body', 'authorUid', 'authorName', 'committee',
+               'createdAt', 'isPinned', 'attachmentUrl'
+             ])
+             && data.title is string && data.title.size() > 0 && data.title.size() <= 120
+             && data.body is string && data.body.size() > 0 && data.body.size() <= 5000
+             && data.authorUid is string && data.authorUid.size() > 0
+             && data.authorName is string && data.authorName.size() > 0 && data.authorName.size() <= 100
+             && data.createdAt is int && data.createdAt >= 0
+             && data.isPinned is bool
+             && data.attachmentUrl is string && data.attachmentUrl.size() <= 2048
+             && validContentAudience(data);
+    }
+
+    function validEvent(data) {
+      return data.keys().hasAll([
+               'title', 'description', 'startTime', 'location', 'isVirtual',
+               'meetingLink', 'committee', 'createdByUid', 'createdByName', 'createdAt'
+             ])
+             && data.keys().hasOnly([
+               'title', 'description', 'startTime', 'location', 'isVirtual',
+               'meetingLink', 'committee', 'createdByUid', 'createdByName', 'createdAt'
+             ])
+             && data.title is string && data.title.size() > 0 && data.title.size() <= 120
+             && data.description is string && data.description.size() <= 2000
+             && data.startTime is int && data.startTime >= 0
+             && data.location is string && data.location.size() <= 200
+             && data.isVirtual is bool
+             && data.meetingLink is string && data.meetingLink.size() <= 2048
+             && (data.isVirtual
+                 ? data.meetingLink.size() > 0
+                 : data.location.size() > 0)
+             && data.createdByUid is string && data.createdByUid.size() > 0
+             && data.createdByName is string && data.createdByName.size() > 0 && data.createdByName.size() <= 100
+             && data.createdAt is int && data.createdAt >= 0
+             && validContentAudience(data);
     }
 
     function validPollOption(options, index) {
@@ -416,18 +461,22 @@ service cloud.firestore {
     match /announcements/{id} {
       allow read: if canViewCommitteeContent(resource.data);
 
-      allow create: if request.resource.data.authorUid == myUid()
-                    && validContentAudience(request.resource.data)
+      allow create: if validAnnouncement(request.resource.data)
+                    && request.resource.data.authorUid == myUid()
+                    && request.resource.data.authorName == userData(myUid()).name
                     && (isCoordinator()
                         || isHeadOfCommittee(request.resource.data.committee));
 
-      allow update: if (isCoordinator()
-                        && validContentAudience(request.resource.data))
-                    || (isHead() && resource.data.authorUid == myUid()
-                        && request.resource.data.authorUid == resource.data.authorUid
-                        && validContentAudience(request.resource.data)
-                        && isHeadOfCommittee(resource.data.committee)
-                        && request.resource.data.committee == resource.data.committee);
+      allow update: if validAnnouncement(request.resource.data)
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                        .hasOnly(['title', 'body', 'committee', 'isPinned', 'attachmentUrl'])
+                    && request.resource.data.authorUid == resource.data.authorUid
+                    && request.resource.data.authorName == resource.data.authorName
+                    && request.resource.data.createdAt == resource.data.createdAt
+                    && (isCoordinator()
+                        || (isHead() && resource.data.authorUid == myUid()
+                            && isHeadOfCommittee(resource.data.committee)
+                            && request.resource.data.committee == resource.data.committee));
 
       allow delete: if isCoordinator()
                     || (isHead() && resource.data.authorUid == myUid()
@@ -438,18 +487,22 @@ service cloud.firestore {
     match /events/{id} {
       allow read: if canViewCommitteeContent(resource.data);
 
-      allow create: if request.resource.data.createdByUid == myUid()
-                    && validContentAudience(request.resource.data)
+      allow create: if validEvent(request.resource.data)
+                    && request.resource.data.createdByUid == myUid()
+                    && request.resource.data.createdByName == userData(myUid()).name
                     && (isCoordinator()
                         || isHeadOfCommittee(request.resource.data.committee));
 
-      allow update: if (isCoordinator()
-                        && validContentAudience(request.resource.data))
-                    || (isHead() && resource.data.createdByUid == myUid()
-                        && request.resource.data.createdByUid == resource.data.createdByUid
-                        && validContentAudience(request.resource.data)
-                        && isHeadOfCommittee(resource.data.committee)
-                        && request.resource.data.committee == resource.data.committee);
+      allow update: if validEvent(request.resource.data)
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                        .hasOnly(['title', 'description', 'startTime', 'location', 'isVirtual', 'meetingLink', 'committee'])
+                    && request.resource.data.createdByUid == resource.data.createdByUid
+                    && request.resource.data.createdByName == resource.data.createdByName
+                    && request.resource.data.createdAt == resource.data.createdAt
+                    && (isCoordinator()
+                        || (isHead() && resource.data.createdByUid == myUid()
+                            && isHeadOfCommittee(resource.data.committee)
+                            && request.resource.data.committee == resource.data.committee));
 
       allow delete: if isCoordinator()
                     || (isHead() && resource.data.createdByUid == myUid()

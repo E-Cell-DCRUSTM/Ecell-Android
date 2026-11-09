@@ -3,7 +3,6 @@ package dcrustm.ecell.mobile
 import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
-import android.os.Build
 import dagger.hilt.android.HiltAndroidApp
 import dcrustm.ecell.mobile.messaging.NOTIFICATION_CHANNEL_ID
 
@@ -16,8 +15,6 @@ class MainApplication : Application() {
     }
 
     private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
-
         val channel = NotificationChannel(
             NOTIFICATION_CHANNEL_ID,
             "Announcements & updates",
@@ -27,6 +24,6 @@ class MainApplication : Application() {
         }
 
         val manager = getSystemService(NotificationManager::class.java)
-        manager?.createNotificationChannel(channel)
+        manager.createNotificationChannel(channel)
     }
 }

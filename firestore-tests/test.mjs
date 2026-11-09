@@ -1,9 +1,11 @@
 import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { initializeTestEnvironment } from "@firebase/rules-unit-testing";
 import {
   collection,
+  deleteField,
   deleteDoc,
   doc,
   getDoc,
@@ -15,6 +17,9 @@ import {
   where,
   writeBatch,
 } from "firebase/firestore";
+
+const require = createRequire(import.meta.url);
+const { runContactMigration } = require("../functions/lib/contactMigration.js");
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const rules = readFileSync(resolve(root, "firestore.rules"), "utf8");
@@ -73,6 +78,32 @@ const profile = (uid, committee, role = "MEMBER", isApproved = true) => ({
   profilePhotoUrl: "",
   joinedAt: 1,
   isApproved,
+});
+
+const announcement = (authorUid, committee, overrides = {}) => ({
+  title: "Scoped notice",
+  body: "A useful update for E-Cell members.",
+  authorUid,
+  authorName: authorUid,
+  committee,
+  createdAt: 123,
+  isPinned: false,
+  attachmentUrl: "",
+  ...overrides,
+});
+
+const eventData = (createdByUid, committee, overrides = {}) => ({
+  title: "Workshop",
+  description: "A practical workshop for members.",
+  startTime: 456,
+  location: "Seminar Hall",
+  isVirtual: false,
+  meetingLink: "",
+  committee,
+  createdByUid,
+  createdByName: createdByUid,
+  createdAt: 123,
+  ...overrides,
 });
 
 const seed = async () => env.withSecurityRulesDisabled(async (context) => {
@@ -137,6 +168,59 @@ async function createVote(db, pollId, uid, ballotId, optionIndex = 0) {
 
 try {
   await seed();
+
+  const migrationUid = "migration-profile";
+  const legacyUser = profile(migrationUid, "EVENTS");
+  legacyUser.email = "migration@example.invalid";
+  legacyUser.phone = "555-0140";
+  legacyUser.fcmTokens = ["migration-token-a", "migration-token-b"];
+  await env.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), `users/${migrationUid}`), legacyUser);
+  });
+  const migrationInput = {
+    users: [{ id: migrationUid, data: legacyUser }],
+    contacts: [],
+    devices: [],
+  };
+  const migrationResult = await runContactMigration(
+    migrationInput.users,
+    migrationInput.contacts,
+    migrationInput.devices,
+    { apply: true },
+    async (records) => env.withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore();
+      const batch = writeBatch(db);
+      for (const migrated of records) {
+        batch.set(doc(db, `userContacts/${migrated.uid}`), migrated.contact);
+        if (migrated.writeDeviceDocument) {
+          batch.set(doc(db, `userDevices/${migrated.uid}`), { fcmTokens: migrated.fcmTokens });
+        }
+        if (migrated.removeLegacyFields) {
+          batch.update(doc(db, `users/${migrated.uid}`), {
+            email: deleteField(),
+            phone: deleteField(),
+            fcmTokens: deleteField(),
+          });
+        }
+      }
+      await batch.commit();
+    }),
+  );
+  record(
+    "migration planner produces a valid profile/contact/device set",
+    migrationResult.status === "applied" &&
+      migrationResult.plan.issues.length === 0 &&
+      migrationResult.report.validProfiles === 1,
+  );
+  const migratedUser = dbFor(migrationUid);
+  await check("migrated public profile passes the current profile write rules", true, () =>
+    updateDoc(doc(migratedUser, `users/${migrationUid}`), { bio: "Rules-verified migration" }));
+  await check("migrated contact document passes the current contact rules", true, () =>
+    getDoc(doc(migratedUser, `userContacts/${migrationUid}`)));
+  await check("migrated device tokens pass the current device rules", true, () =>
+    updateDoc(doc(migratedUser, `userDevices/${migrationUid}`), { fcmTokens: ["migration-token-c"] }));
+  await check("another member cannot read the migrated private contact", false, () =>
+    getDoc(doc(alice, `userContacts/${migrationUid}`)));
 
   await check("approved directory query", true, () =>
     getDocs(query(collection(alice, "users"), where("isApproved", "==", true))));
@@ -266,23 +350,124 @@ try {
     getDocs(collection(coordinator, "events")));
 
   await check("committee head can post to their committee", true, () =>
-    setDoc(doc(eventsHead, "announcements/head-post"), {
-      authorUid: "events-head",
-      committee: "EVENTS",
-      title: "Scoped notice",
-    }));
+    setDoc(doc(eventsHead, "announcements/head-post"), announcement("events-head", "EVENTS")));
   await check("committee head cannot post organization-wide", false, () =>
-    setDoc(doc(eventsHead, "announcements/head-wide"), {
-      authorUid: "events-head",
-      committee: null,
-      title: "Global notice",
-    }));
+    setDoc(doc(eventsHead, "announcements/head-wide"), announcement("events-head", null)));
+  await check("committee head cannot post to another committee", false, () =>
+    setDoc(doc(eventsHead, "announcements/head-cross-committee"), announcement("events-head", "CORPORATE")));
   await check("coordinator can post organization-wide", true, () =>
-    setDoc(doc(coordinator, "announcements/coordinator-wide"), {
-      authorUid: "coordinator",
-      committee: null,
-      title: "Global notice",
-    }));
+    setDoc(doc(coordinator, "announcements/coordinator-wide"), announcement("coordinator", null)));
+  await check("member cannot create an announcement", false, () =>
+    setDoc(doc(bob, "announcements/member-post"), announcement("bob", "CORPORATE")));
+  await check("announcement creator UID must match the signed-in user", false, () =>
+    setDoc(doc(eventsHead, "announcements/forged-uid"), announcement("alice", "EVENTS")));
+  await check("announcement author name must match the profile", false, () =>
+    setDoc(doc(eventsHead, "announcements/forged-name"), announcement("events-head", "EVENTS", { authorName: "Someone Else" })));
+  await check("announcement requires every model field", false, () => {
+    const malformed = announcement("events-head", "EVENTS");
+    delete malformed.attachmentUrl;
+    return setDoc(doc(eventsHead, "announcements/missing-field"), malformed);
+  });
+  await check("announcement rejects fields outside the model", false, () =>
+    setDoc(doc(eventsHead, "announcements/extra-field"), announcement("events-head", "EVENTS", { hidden: true })));
+  await check("announcement title length is enforced", false, () =>
+    setDoc(doc(eventsHead, "announcements/long-title"), announcement("events-head", "EVENTS", { title: "x".repeat(121) })));
+  await check("announcement body length is enforced", false, () =>
+    setDoc(doc(eventsHead, "announcements/long-body"), announcement("events-head", "EVENTS", { body: "x".repeat(5001) })));
+  await check("announcement author name length is enforced", false, () =>
+    setDoc(doc(eventsHead, "announcements/long-author"), announcement("events-head", "EVENTS", { authorName: "x".repeat(101) })));
+  await check("announcement attachment URL length is enforced", false, () =>
+    setDoc(doc(eventsHead, "announcements/long-attachment"), announcement("events-head", "EVENTS", { attachmentUrl: "x".repeat(2049) })));
+  await check("announcement pin state must be boolean", false, () =>
+    setDoc(doc(eventsHead, "announcements/wrong-pin-type"), announcement("events-head", "EVENTS", { isPinned: "yes" })));
+  await check("announcement cannot target the NONE committee", false, () =>
+    setDoc(doc(coordinator, "announcements/invalid-audience"), announcement("coordinator", "NONE")));
+  await check("committee head can update their own announcement", true, () =>
+    updateDoc(doc(eventsHead, "announcements/head-post"), { title: "Updated events notice" }));
+  await check("committee head cannot change their announcement audience", false, () =>
+    updateDoc(doc(eventsHead, "announcements/head-post"), { committee: "MARKETING" }));
+  await check("announcement author UID is immutable", false, () =>
+    updateDoc(doc(eventsHead, "announcements/head-post"), { authorUid: "alice" }));
+  await check("announcement author name is immutable", false, () =>
+    updateDoc(doc(eventsHead, "announcements/head-post"), { authorName: "Changed name" }));
+  await check("announcement creation time is immutable", false, () =>
+    updateDoc(doc(eventsHead, "announcements/head-post"), { createdAt: 999 }));
+  await check("different committee head cannot update an announcement", false, () =>
+    updateDoc(doc(corporateHead, "announcements/head-post"), { title: "Cross-committee edit" }));
+  await check("different committee head cannot delete an announcement", false, () =>
+    deleteDoc(doc(corporateHead, "announcements/head-post")));
+  await check("coordinator can update announcement content", true, () =>
+    updateDoc(doc(coordinator, "announcements/coordinator-wide"), { title: "Coordinator edit" }));
+  await check("committee head can delete their announcement", true, () =>
+    deleteDoc(doc(eventsHead, "announcements/head-post")));
+  await check("coordinator can delete managed announcement", true, () =>
+    deleteDoc(doc(coordinator, "announcements/coordinator-wide")));
+
+  await check("committee head can create an in-person event", true, () =>
+    setDoc(doc(eventsHead, "events/head-in-person"), eventData("events-head", "EVENTS")));
+  await check("coordinator can create an organization-wide virtual event", true, () =>
+    setDoc(doc(coordinator, "events/coordinator-virtual"), eventData("coordinator", null, {
+      isVirtual: true,
+      location: "",
+      meetingLink: "https://meet.example.invalid/room",
+    })));
+  await check("committee head cannot create an event for another committee", false, () =>
+    setDoc(doc(eventsHead, "events/head-cross-committee"), eventData("events-head", "CORPORATE")));
+  await check("member cannot create an event", false, () =>
+    setDoc(doc(bob, "events/member-create"), eventData("bob", "CORPORATE")));
+  await check("event creator UID must match the signed-in user", false, () =>
+    setDoc(doc(eventsHead, "events/forged-uid"), eventData("alice", "EVENTS")));
+  await check("event creator name must match the profile", false, () =>
+    setDoc(doc(eventsHead, "events/forged-name"), eventData("events-head", "EVENTS", { createdByName: "Someone Else" })));
+  await check("in-person event requires a location", false, () =>
+    setDoc(doc(eventsHead, "events/missing-location"), eventData("events-head", "EVENTS", { location: "" })));
+  await check("virtual event requires a meeting link", false, () =>
+    setDoc(doc(eventsHead, "events/missing-link"), eventData("events-head", "EVENTS", {
+      isVirtual: true,
+      location: "",
+      meetingLink: "",
+    })));
+  await check("event requires every model field", false, () => {
+    const malformed = eventData("events-head", "EVENTS");
+    delete malformed.createdAt;
+    return setDoc(doc(eventsHead, "events/missing-field"), malformed);
+  });
+  await check("event rejects fields outside the model", false, () =>
+    setDoc(doc(eventsHead, "events/extra-field"), eventData("events-head", "EVENTS", { hidden: true })));
+  await check("event title length is enforced", false, () =>
+    setDoc(doc(eventsHead, "events/long-title"), eventData("events-head", "EVENTS", { title: "x".repeat(121) })));
+  await check("event description length is enforced", false, () =>
+    setDoc(doc(eventsHead, "events/long-description"), eventData("events-head", "EVENTS", { description: "x".repeat(2001) })));
+  await check("event location length is enforced", false, () =>
+    setDoc(doc(eventsHead, "events/long-location"), eventData("events-head", "EVENTS", { location: "x".repeat(201) })));
+  await check("event meeting URL length is enforced", false, () =>
+    setDoc(doc(coordinator, "events/long-link"), eventData("coordinator", null, {
+      isVirtual: true,
+      location: "",
+      meetingLink: "x".repeat(2049),
+    })));
+  await check("event creation time must be a nonnegative integer", false, () =>
+    setDoc(doc(eventsHead, "events/wrong-time-type"), eventData("events-head", "EVENTS", { createdAt: "now" })));
+  await check("committee head can update their own event", true, () =>
+    updateDoc(doc(eventsHead, "events/head-in-person"), { title: "Updated workshop" }));
+  await check("committee head cannot change their event audience", false, () =>
+    updateDoc(doc(eventsHead, "events/head-in-person"), { committee: "MARKETING" }));
+  await check("event creator UID is immutable", false, () =>
+    updateDoc(doc(eventsHead, "events/head-in-person"), { createdByUid: "alice" }));
+  await check("event creator name is immutable", false, () =>
+    updateDoc(doc(eventsHead, "events/head-in-person"), { createdByName: "Changed name" }));
+  await check("event creation time is immutable", false, () =>
+    updateDoc(doc(eventsHead, "events/head-in-person"), { createdAt: 999 }));
+  await check("different committee head cannot update an event", false, () =>
+    updateDoc(doc(corporateHead, "events/head-in-person"), { title: "Cross-committee edit" }));
+  await check("different committee head cannot delete an event", false, () =>
+    deleteDoc(doc(corporateHead, "events/head-in-person")));
+  await check("coordinator can update event content", true, () =>
+    updateDoc(doc(coordinator, "events/coordinator-virtual"), { title: "Coordinator event edit" }));
+  await check("committee head can delete their event", true, () =>
+    deleteDoc(doc(eventsHead, "events/head-in-person")));
+  await check("coordinator can delete managed event", true, () =>
+    deleteDoc(doc(coordinator, "events/coordinator-virtual")));
 
   const validComplaint = {
     title: "Room equipment issue",
@@ -310,6 +495,10 @@ try {
     getDoc(doc(alice, "complaints/alice-complaint")));
   await check("another member cannot read complaint details", false, () =>
     getDoc(doc(bob, "complaints/alice-complaint")));
+  await check("filer-scoped complaint history query is allowed", true, () =>
+    getDocs(query(collection(alice, "complaints"), where("filerUid", "==", "alice"))));
+  await check("member cannot query another filer's complaint history", false, () =>
+    getDocs(query(collection(bob, "complaints"), where("filerUid", "==", "alice"))));
   await check("coordinator can read complaints", true, () =>
     getDocs(collection(coordinator, "complaints")));
   await check("member cannot change complaint status or response", false, () =>
@@ -319,6 +508,10 @@ try {
       status: "RESOLVED",
       response: "The issue has been repaired.",
     }));
+  await check("filer can read the coordinator response", true, async () => {
+    const snapshot = await getDoc(doc(alice, "complaints/alice-complaint"));
+    record("complaint response text is present for its filer", snapshot.data()?.response === "The issue has been repaired.");
+  });
   await check("coordinator cannot rewrite complaint identity", false, () =>
     updateDoc(doc(coordinator, "complaints/alice-complaint"), { filerUid: "bob" }));
 

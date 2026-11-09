@@ -45,8 +45,13 @@ class GetGoogleIdUseCase @Inject constructor() {
         }
 
         // Extract the Google ID token from the response
-        val tokenCredential =
-            GoogleIdTokenCredential.createFrom(result.credential.data)
+        val credential = result.credential
+        val tokenCredential = when (credential.type) {
+            GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL,
+            GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_SIWG_CREDENTIAL ->
+                GoogleIdTokenCredential.createFrom(credential.data)
+            else -> throw IllegalStateException("Google sign-in returned an unsupported credential type.")
+        }
 
         val googleProviderUser = GoogleProviderUser(
             idToken = tokenCredential.idToken,
