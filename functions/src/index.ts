@@ -2,6 +2,7 @@ import { onDocumentCreated, onDocumentUpdated } from "firebase-functions/v2/fire
 import { initializeApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import { getMessaging } from "firebase-admin/messaging";
+import { normalizeFcmTokens } from "./fcmTokens";
 
 initializeApp();
 const db = getFirestore();
@@ -24,10 +25,7 @@ async function tokensForAudience(committee: string | null): Promise<string[]> {
   );
   const tokens: string[] = [];
   deviceDocs.forEach((doc) => {
-    const data = doc.data();
-    if (Array.isArray(data?.fcmTokens)) {
-      tokens.push(...data.fcmTokens);
-    }
+    tokens.push(...normalizeFcmTokens(doc.data()?.fcmTokens));
   });
   return tokens;
 }
@@ -35,8 +33,7 @@ async function tokensForAudience(committee: string | null): Promise<string[]> {
 async function tokensForUser(uid: string): Promise<string[]> {
   const doc = await db.collection("userDevices").doc(uid).get();
   if (!doc.exists) return [];
-  const data = doc.data();
-  return Array.isArray(data?.fcmTokens) ? data!.fcmTokens : [];
+  return normalizeFcmTokens(doc.data()?.fcmTokens);
 }
 
 /** FCM caps a single multicast send at 500 tokens, so this chunks and fires sequentially. */
@@ -72,8 +69,8 @@ async function pruneDeadTokens(deadTokens: string[]): Promise<void> {
   const snap = await db.collection("userDevices").where("fcmTokens", "array-contains-any", deadTokens.slice(0, 10)).get();
   const batch = db.batch();
   snap.forEach((doc) => {
-    const data = doc.data();
-    const remaining = (data.fcmTokens as string[]).filter((t) => !deadTokens.includes(t));
+    const remaining = normalizeFcmTokens(doc.data()?.fcmTokens)
+      .filter((token) => !deadTokens.includes(token));
     batch.update(doc.ref, { fcmTokens: remaining });
   });
   if (!snap.empty) await batch.commit();

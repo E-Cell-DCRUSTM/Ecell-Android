@@ -154,6 +154,18 @@ try {
     getDoc(doc(corporateHead, "userContacts/alice")));
   await check("member can update their own phone without losing committee", true, () =>
     updateDoc(doc(alice, "userContacts/alice"), { phone: "555-0101" }));
+  await check("member can register bounded FCM tokens for their own devices", true, () =>
+    setDoc(doc(alice, "userDevices/alice"), { fcmTokens: ["token-one", "token-two"] }));
+  await check("member cannot read another member's FCM tokens", false, () =>
+    getDoc(doc(alice, "userDevices/bob")));
+  await check("member cannot write another member's FCM tokens", false, () =>
+    setDoc(doc(alice, "userDevices/bob"), { fcmTokens: ["token-forged"] }));
+  await check("device token values must be strings", false, () =>
+    setDoc(doc(bob, "userDevices/bob"), { fcmTokens: [42] }));
+  await check("device token values must be bounded strings", false, () =>
+    setDoc(doc(bob, "userDevices/bob"), { fcmTokens: ["x".repeat(4097)] }));
+  await check("device token lists have a bounded size", false, () =>
+    setDoc(doc(bob, "userDevices/bob"), { fcmTokens: Array.from({ length: 21 }, (_, i) => `token-${i}`) }));
 
   await env.withSecurityRulesDisabled(async (context) => {
     const adminDb = context.firestore();

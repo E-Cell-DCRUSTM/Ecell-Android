@@ -60,6 +60,39 @@ service cloud.firestore {
              && options[index].size() <= 80;
     }
 
+    function validFcmToken(tokens, index) {
+      return tokens[index] is string
+             && tokens[index].size() > 0
+             && tokens[index].size() <= 4096;
+    }
+
+    // A user may have several signed-in devices, but cannot inflate the
+    // notification fan-out document with arbitrary or unbounded values.
+    function validFcmTokens(tokens) {
+      return tokens is list
+             && tokens.size() <= 20
+             && (tokens.size() < 1 || validFcmToken(tokens, 0))
+             && (tokens.size() < 2 || validFcmToken(tokens, 1))
+             && (tokens.size() < 3 || validFcmToken(tokens, 2))
+             && (tokens.size() < 4 || validFcmToken(tokens, 3))
+             && (tokens.size() < 5 || validFcmToken(tokens, 4))
+             && (tokens.size() < 6 || validFcmToken(tokens, 5))
+             && (tokens.size() < 7 || validFcmToken(tokens, 6))
+             && (tokens.size() < 8 || validFcmToken(tokens, 7))
+             && (tokens.size() < 9 || validFcmToken(tokens, 8))
+             && (tokens.size() < 10 || validFcmToken(tokens, 9))
+             && (tokens.size() < 11 || validFcmToken(tokens, 10))
+             && (tokens.size() < 12 || validFcmToken(tokens, 11))
+             && (tokens.size() < 13 || validFcmToken(tokens, 12))
+             && (tokens.size() < 14 || validFcmToken(tokens, 13))
+             && (tokens.size() < 15 || validFcmToken(tokens, 14))
+             && (tokens.size() < 16 || validFcmToken(tokens, 15))
+             && (tokens.size() < 17 || validFcmToken(tokens, 16))
+             && (tokens.size() < 18 || validFcmToken(tokens, 17))
+             && (tokens.size() < 19 || validFcmToken(tokens, 18))
+             && (tokens.size() < 20 || validFcmToken(tokens, 19));
+    }
+
     function validPollOptions(options) {
       return options is list
              && options.size() >= 2
@@ -224,10 +257,12 @@ service cloud.firestore {
     match /userDevices/{userId} {
       allow read: if isSignedIn() && myUid() == userId;
       allow create: if isSignedIn() && myUid() == userId
-                    && request.resource.data.keys().hasOnly(['fcmTokens']);
+                    && request.resource.data.keys().hasOnly(['fcmTokens'])
+                    && validFcmTokens(request.resource.data.fcmTokens);
       allow update: if isSignedIn() && myUid() == userId
                     && request.resource.data.diff(resource.data).affectedKeys()
-                        .hasOnly(['fcmTokens']);
+                        .hasOnly(['fcmTokens'])
+                    && validFcmTokens(request.resource.data.fcmTokens);
       allow delete: if isSignedIn() && myUid() == userId;
     }
 

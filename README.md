@@ -62,4 +62,4 @@ The Firebase Functions are TypeScript in `functions/src`. Firebase deployment ru
 
 - Coordinator and committee-head permissions are enforced in Firestore rules. Heads can create and manage content only for their own committee; organization-wide content is coordinator-only.
 - Existing Firestore data must be migrated before deploying the rules. Directory reads for legacy documents are intentionally denied to other members while contact fields or FCM tokens remain on those records.
-- The current test source files are Android Studio template tests and do not cover application flows yet.
+- CI builds the debug and release APKs, runs Android unit tests and lint, executes Firestore authorization regressions in the emulator, builds/tests the Functions migration helpers, and audits both Node dependency trees. The Android unit tests cover role-based navigation and list loading/error states; Firestore emulator tests exercise authentication, approval, committee privacy, voting, complaints, chat, and profile rules. Full tap-through UI testing still requires an Android emulator or device.

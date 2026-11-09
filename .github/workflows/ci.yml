@@ -71,9 +71,10 @@ jobs:
         run: |
           npm ci --prefix functions
           npm test --prefix functions
-          npm audit --prefix functions --omit=dev --audit-level=high
+          npm audit --prefix functions --audit-level=high
 
       - name: Test Firestore security rules in the emulator
         run: |
           npm ci --prefix firestore-tests
           npm test --prefix firestore-tests
+          npm audit --prefix firestore-tests --audit-level=high
