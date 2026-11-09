@@ -3,6 +3,7 @@ import { initializeApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import { getMessaging } from "firebase-admin/messaging";
 import { normalizeFcmTokens } from "./fcmTokens";
+import { complaintUpdateNotification } from "./notificationPayloads";
 
 initializeApp();
 const db = getFirestore();
@@ -109,5 +110,6 @@ export const onComplaintUpdated = onDocumentUpdated("complaints/{id}", async (ev
   if (!filerUid) return;
 
   const tokens = await tokensForUser(filerUid);
-  await sendToTokens(tokens, "Your complaint was updated", after.title ?? "Status updated");
+  const notification = complaintUpdateNotification();
+  await sendToTokens(tokens, notification.title, notification.body);
 });

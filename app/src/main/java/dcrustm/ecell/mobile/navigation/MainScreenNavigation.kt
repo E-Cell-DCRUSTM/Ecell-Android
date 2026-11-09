@@ -58,6 +58,12 @@ sealed class Screen(
         visibleTo = setOf(ROLE.MEMBER, ROLE.COMMITTEE_HEAD)
     )
 
+    object MyComplaints : Screen(
+        "my_complaints", "My Complaints",
+        Icons.Filled.Feedback, Icons.Outlined.Feedback,
+        visibleTo = setOf(ROLE.MEMBER, ROLE.COMMITTEE_HEAD)
+    )
+
     object Members : Screen(
         "members", "Members",
         Icons.Filled.ManageAccounts, Icons.Outlined.ManageAccounts,
@@ -100,6 +106,7 @@ fun moreScreensForRole(role: ROLE): List<Screen> = listOf(
     Screen.Directory,
     Screen.MyCommittee,
     Screen.Complaints,
+    Screen.MyComplaints,
     Screen.Members,
     Screen.Inbox
 ).filter { role in it.visibleTo }

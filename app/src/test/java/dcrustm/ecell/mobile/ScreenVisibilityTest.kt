@@ -27,7 +27,7 @@ class ScreenVisibilityTest {
     @Test
     fun ordinaryMembersSeeOnlyMemberToolsUnderMore() {
         assertEquals(
-            setOf("directory", "complaints"),
+            setOf("directory", "complaints", "my_complaints"),
             moreScreensForRole(ROLE.MEMBER).map(Screen::route).toSet(),
         )
     }
@@ -35,7 +35,7 @@ class ScreenVisibilityTest {
     @Test
     fun committeeHeadsSeeCommitteeToolsWithoutCoordinatorInbox() {
         assertEquals(
-            setOf("directory", "my_committee", "complaints"),
+            setOf("directory", "my_committee", "complaints", "my_complaints"),
             moreScreensForRole(ROLE.COMMITTEE_HEAD).map(Screen::route).toSet(),
         )
     }

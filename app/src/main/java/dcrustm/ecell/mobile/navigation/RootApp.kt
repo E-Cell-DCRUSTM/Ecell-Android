@@ -16,15 +16,16 @@ import androidx.navigation.navArgument
 import dcrustm.ecell.mobile.ui.about.AboutUsScreen
 import dcrustm.ecell.mobile.ui.directory.MemberDetailScreen
 import dcrustm.ecell.mobile.ui.profile.ProfileScreen
+import dcrustm.ecell.mobile.session.UserSessionState
 
 @Composable
 fun RootApp(
     onSignedOut: () -> Unit = {},
     viewModel: RootAppViewModel = hiltViewModel()
 ) {
-    val isSignedIn by viewModel.isSignedIn.collectAsState()
-    LaunchedEffect(isSignedIn) {
-        if (!isSignedIn) onSignedOut()
+    val sessionState by viewModel.sessionState.collectAsState()
+    LaunchedEffect(sessionState) {
+        if (sessionState == UserSessionState.SignedOut) onSignedOut()
     }
 
     val rootNavController = rememberNavController()

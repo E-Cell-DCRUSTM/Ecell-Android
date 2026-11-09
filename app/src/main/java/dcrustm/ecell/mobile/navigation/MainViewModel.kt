@@ -16,8 +16,10 @@ class MainViewModel @Inject constructor(
     private val memberRepository: MemberRepository
 ) : ViewModel() {
     val currentUser = sessionManager.currentUser
+    val sessionState = sessionManager.sessionState
 
     fun signOut() = sessionManager.signOut()
+    fun retryProfileObservation() = sessionManager.retryProfileObservation()
 
     fun registerPushToken() {
         val uid = sessionManager.currentUser.value?.uid ?: return

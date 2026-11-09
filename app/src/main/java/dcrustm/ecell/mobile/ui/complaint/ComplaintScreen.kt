@@ -75,7 +75,10 @@ fun ComplaintScreen(
         }
     ) { innerPadding ->
         if (submitted) {
-            SubmittedState(modifier = Modifier.padding(innerPadding))
+            SubmittedState(
+                modifier = Modifier.padding(innerPadding),
+                onViewComplaints = onSubmitted
+            )
         } else {
             Column(
                 modifier = Modifier
@@ -145,7 +148,6 @@ fun ComplaintScreen(
                         if (valid) {
                             viewModel.submit(title, body) {
                                 submitted = true
-                                onSubmitted()
                                 scope.launch {
                                     snackbarHostState.showSnackbar("Complaint submitted")
                                 }
@@ -167,7 +169,7 @@ fun ComplaintScreen(
 }
 
 @Composable
-private fun SubmittedState(modifier: Modifier = Modifier) {
+private fun SubmittedState(modifier: Modifier = Modifier, onViewComplaints: () -> Unit) {
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -184,5 +186,7 @@ private fun SubmittedState(modifier: Modifier = Modifier) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center
         )
+        Spacer(Modifier.height(20.dp))
+        Button(onClick = onViewComplaints) { Text("View my complaints") }
     }
 }

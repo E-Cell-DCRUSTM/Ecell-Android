@@ -89,7 +89,8 @@ fun MoreScreen(
 private fun destinationDescription(screen: Screen): String = when (screen) {
     Screen.Directory -> "Browse approved E-Cell members"
     Screen.MyCommittee -> "View and search your committee roster"
-    Screen.Complaints -> "Submit a private complaint and check its status"
+    Screen.Complaints -> "Submit a private complaint"
+    Screen.MyComplaints -> "Check your complaint status and coordinator responses"
     Screen.Members -> "Manage member roles and pending applications"
     Screen.Inbox -> "Review and respond to member complaints"
     else -> screen.title

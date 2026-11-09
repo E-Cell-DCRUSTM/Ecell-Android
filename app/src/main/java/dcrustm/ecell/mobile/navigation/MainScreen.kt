@@ -23,9 +23,10 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import dcrustm.ecell.mobile.domain.model.ROLE
+import dcrustm.ecell.mobile.session.UserSessionState
 import dcrustm.ecell.mobile.ui.complaint.ComplaintScreen
 import dcrustm.ecell.mobile.ui.complaint.ComplaintInboxScreen
+import dcrustm.ecell.mobile.ui.complaint.MyComplaintsScreen
 import dcrustm.ecell.mobile.ui.coordinator.ManageMembersScreen
 import dcrustm.ecell.mobile.ui.chat.ChatScreen
 import dcrustm.ecell.mobile.ui.chat.MessagesScreen
@@ -46,20 +47,27 @@ fun MainScreen(
     viewModel: MainViewModel = hiltViewModel()
 ) {
     val navController = rememberNavController()
-    val currentUser by viewModel.currentUser.collectAsState()
-    val role = currentUser?.role ?: ROLE.PENDING
-    val screens = screensForRole(role)
+    val sessionState by viewModel.sessionState.collectAsState()
+    val approvedMember = (sessionState as? UserSessionState.Approved)?.member
 
-    if (screens.isEmpty()) {
-        PendingApprovalScreen(onSignOut = { viewModel.signOut() })
+    if (sessionState !is UserSessionState.Approved) {
+        SessionGateContent(
+            state = sessionState,
+            onRetry = { viewModel.retryProfileObservation() },
+            onSignOut = { viewModel.signOut() },
+            approvedContent = {}
+        )
         return
     }
+
+    val role = approvedMember?.role ?: return
+    val screens = screensForRole(role)
 
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { /* Either way, push just won't show locally — nothing else to do here. */ }
 
-    LaunchedEffect(currentUser?.uid) {
+    LaunchedEffect(approvedMember?.uid) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
@@ -70,7 +78,9 @@ fun MainScreen(
     val currentRoute = currentBackStackEntry?.destination?.route ?: Screen.Home.route
     val isSecondaryRoute = currentRoute.startsWith("chat/") ||
         currentRoute == ROUTE_POST_ANNOUNCEMENT ||
-        currentRoute == ROUTE_CREATE_EVENT
+        currentRoute == ROUTE_CREATE_EVENT ||
+        currentRoute == Screen.Complaints.route ||
+        currentRoute == Screen.MyComplaints.route
     val selectedBottomRoute = if (screens.any { it.route == currentRoute }) currentRoute else Screen.More.route
 
     Scaffold(
@@ -130,7 +140,16 @@ fun MainScreen(
                 )
             }
             composable(Screen.Complaints.route) {
-                ComplaintScreen()
+                ComplaintScreen(
+                    onBack = { navController.popBackStack() },
+                    onSubmitted = { navController.navigate(Screen.MyComplaints.route) }
+                )
+            }
+            composable(Screen.MyComplaints.route) {
+                MyComplaintsScreen(
+                    onBack = { navController.popBackStack() },
+                    onFileComplaint = { navController.navigate(Screen.Complaints.route) }
+                )
             }
             composable(Screen.Members.route) {
                 ManageMembersScreen(
