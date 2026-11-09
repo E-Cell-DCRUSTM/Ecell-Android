@@ -1,6 +1,7 @@
 package dcrustm.ecell.mobile.data.repository
 
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.Query
 import dcrustm.ecell.mobile.data.firebase.awaitResult
 import dcrustm.ecell.mobile.data.firebase.snapshots
@@ -30,7 +31,9 @@ class FirestoreComplaintRepository @Inject constructor(
         }
 
     override suspend fun submitComplaint(complaint: Complaint) {
-        collectionRef.add(complaint.toFirestoreMap()).awaitResult()
+        collectionRef.add(
+            complaint.toFirestoreMap() + ("createdAt" to FieldValue.serverTimestamp())
+        ).awaitResult()
     }
 
     override suspend fun updateComplaint(id: String, status: ComplaintStatus, response: String) {

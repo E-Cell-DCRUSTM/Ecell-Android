@@ -10,6 +10,8 @@ The Android app for E-Cell at DCRUSTM. It is built with Kotlin, Jetpack Compose,
 - Upcoming events with date, time, location, and virtual meeting details.
 - Private complaints submitted by members and reviewed by the coordinator.
 - Push notifications for announcements, events, and complaint updates.
+- Anonymous, one-person-one-vote polls with results hidden until the poll closes.
+- Real-time one-to-one text conversations between approved members.
 
 Market news, meeting summaries, quizzes, and the local scoreboard described in older project notes are not part of the current app.
 
@@ -18,6 +20,8 @@ Market news, meeting summaries, quizzes, and the local scoreboard described in o
 The Android client uses Compose screens, ViewModels, repository interfaces, Firestore-backed repository implementations, and Hilt dependency injection. `firestore.rules` is the authorization boundary; UI role checks are for presentation and are not a substitute for those rules.
 
 Public member directory data is stored in `users/{uid}`. Private email and phone fields belong in `userContacts/{uid}` and are readable by the owner, coordinators, and the member's committee head. Push tokens belong in the owner-only `userDevices/{uid}` document. Announcements, events, and complaints are stored in their matching top-level collections.
+
+Polls use `polls/{pollId}/voterReceipts/{uid}` to prevent repeat voting and `polls/{pollId}/ballots/{ballotId}` for choices. A receipt stores its owner's random ballot ID, while the ballot itself contains no voter UID; only that owner can read the receipt, so ordinary app users cannot link another member to a choice. Ballots stay unreadable while a poll is open and become visible after it closes. This is app-level privacy, not cryptographic anonymity: Firebase project administrators and Admin SDK code can read both collections and link voter UIDs to ballots. Direct messages use `conversations/{conversationId}/messages/{messageId}` and are readable only by the two approved participants. Messages are protected by Firestore access rules, but are not end-to-end encrypted.
 
 ## Firebase setup
 
@@ -29,16 +33,20 @@ Public member directory data is stored in `users/{uid}`. Private email and phone
    gcloud auth application-default login
    cd functions
    npm install
-   npm run migrate:contacts -- ecell-dcrust
+   npm run migrate:contacts -- --project-id ecell-dcrust
+   # Review the dry-run summary, then explicitly apply when ready:
+   npm run migrate:contacts -- --project-id ecell-dcrust --apply
    cd ..
    ```
 
-   Replace `ecell-dcrust` with the intended Firebase project ID. The migration copies existing email and phone values to `userContacts`, moves FCM tokens to `userDevices`, then removes those private fields from `users`. It is safe to rerun.
+   Replace `ecell-dcrust` with the intended Firebase project ID. The first command is read-only by default. It validates every profile, contact and token before producing a summary; malformed records stop the run before any writes. Only the second command writes. It copies existing email and phone values to `userContacts`, moves FCM tokens to `userDevices`, then removes those private fields from `users`. Batches are bounded and reruns preserve existing contact values and de-duplicate tokens. Never run `--apply` until the project and the backup are confirmed.
 4. Deploy the Firestore rules and notification functions:
 
    ```powershell
    firebase deploy --only firestore:rules,functions
    ```
+
+   Voting and direct messages use Firestore directly and add no Cloud Functions dependency. Publish the updated `firestore.rules` before using them, then rebuild and install the Android app.
 
    This Firestore schema change is coordinated with the current Android app. Older app builds still write private fields to `users/{uid}` and cannot register tokens in `userDevices/{uid}`; plan a coordinated app/rules rollout and require users to update.
 
@@ -46,7 +54,7 @@ Public member directory data is stored in `users/{uid}`. Private email and phone
 
 ## Build
 
-Use Android Studio or run `./gradlew assembleDebug` from the repository root. A local `app/google-services.json` is required by the Google Services Gradle plugin. The release build enables R8 and resource shrinking. For a Play-ready signed release, set `ANDROID_KEYSTORE_PATH`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, and `ANDROID_KEY_PASSWORD` in the build environment, then run `./gradlew assembleRelease`; keep the keystore and passwords out of Git. The Android version is `1.1.0` / version code `2` for this schema update.
+Use Android Studio or run `./gradlew assembleDebug` from the repository root. A local `app/google-services.json` is required by the Google Services Gradle plugin. The release build enables R8 and resource shrinking. For a Play-ready signed release, set `ANDROID_KEYSTORE_PATH`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, and `ANDROID_KEY_PASSWORD` in the build environment, then run `./gradlew assembleRelease`; keep the keystore and passwords out of Git. The Android version is `1.2.0` / version code `3` for the polls and messaging update.
 
 The Firebase Functions are TypeScript in `functions/src`. Firebase deployment runs the TypeScript build through `firebase.json`.
 

@@ -49,16 +49,6 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    fun signInAsTestUser() = viewModelScope.launch {
-        if (_authState.value == AuthState.Loading) return@launch
-        _authState.value = AuthState.Loading
-        val result = runCatching { firebaseAuthRepository.signInAsTestUser() }
-            .getOrElse { AuthError(it.message ?: "Test sign-in failed") }
-        when (result) {
-            is AuthSuccess -> _authState.value = AuthState.Authenticated(result)
-            is AuthError -> _authState.value = AuthState.Error(result.errorMessage)
-        }
-    }
 }
 
 sealed class AuthState {

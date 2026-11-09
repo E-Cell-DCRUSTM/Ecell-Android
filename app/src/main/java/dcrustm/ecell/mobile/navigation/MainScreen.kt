@@ -37,15 +37,19 @@ import dcrustm.ecell.mobile.domain.model.ROLE
 import dcrustm.ecell.mobile.ui.complaint.ComplaintScreen
 import dcrustm.ecell.mobile.ui.complaint.ComplaintInboxScreen
 import dcrustm.ecell.mobile.ui.coordinator.ManageMembersScreen
+import dcrustm.ecell.mobile.ui.chat.ChatScreen
+import dcrustm.ecell.mobile.ui.chat.MessagesScreen
 import dcrustm.ecell.mobile.ui.directory.DirectoryScreen
 import dcrustm.ecell.mobile.ui.events.CreateEventScreen
 import dcrustm.ecell.mobile.ui.events.EventsScreen
 import dcrustm.ecell.mobile.ui.home.HomeScreen
 import dcrustm.ecell.mobile.ui.home.InitialsAvatar
 import dcrustm.ecell.mobile.ui.home.PostAnnouncementScreen
+import dcrustm.ecell.mobile.ui.poll.PollsScreen
 
 private const val ROUTE_POST_ANNOUNCEMENT = "post_announcement"
 private const val ROUTE_CREATE_EVENT = "create_event"
+private const val ROUTE_CHAT = "chat/{conversationId}/{otherUid}"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -77,57 +81,55 @@ fun MainScreen(
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = currentBackStackEntry?.destination?.route ?: Screen.Home.route
     val currentScreen = screens.firstOrNull { it.route == currentRoute } ?: screens.first()
+    val isChatRoute = currentRoute?.startsWith("chat/") == true
 
     Scaffold(
         topBar = {
-            CenterAlignedTopAppBar(
-                title = {
-                    Text(
-                        text = currentScreen.title,
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = { rootNavController.navigate(RootScreen.Profile.route) }) {
-                        Box(contentAlignment = Alignment.Center) {
-                            InitialsAvatar(initials = currentUser?.initials ?: "?", size = 34)
+            if (!isChatRoute) {
+                CenterAlignedTopAppBar(
+                    title = { Text(text = currentScreen.title, style = MaterialTheme.typography.titleMedium) },
+                    navigationIcon = {
+                        IconButton(onClick = { rootNavController.navigate(RootScreen.Profile.route) }) {
+                            Box(contentAlignment = Alignment.Center) {
+                                InitialsAvatar(initials = currentUser?.initials ?: "?", size = 34)
+                            }
                         }
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { rootNavController.navigate(RootScreen.Info.route) }) {
-                        Icon(Icons.Outlined.Info, contentDescription = "About")
-                    }
-                },
-                modifier = Modifier.statusBarsPadding()
-            )
+                    },
+                    actions = {
+                        IconButton(onClick = { rootNavController.navigate(RootScreen.Info.route) }) {
+                            Icon(Icons.Outlined.Info, contentDescription = "About")
+                        }
+                    },
+                    modifier = Modifier.statusBarsPadding()
+                )
+            }
         },
         bottomBar = {
-            NavigationBar(
-                containerColor = Color(0xFFFCFCF9),
-                modifier = Modifier.navigationBarsPadding()
-            ) {
-                screens.forEach { screen ->
-                    val selected = currentRoute == screen.route
-                    NavigationBarItem(
-                        selected = selected,
-                        onClick = {
-                            navController.navigate(screen.route) {
-                                popUpTo(navController.graph.findStartDestination().id) {
-                                    saveState = true
+            if (!isChatRoute) {
+                NavigationBar(
+                    containerColor = Color(0xFFFCFCF9),
+                    modifier = Modifier.navigationBarsPadding()
+                ) {
+                    screens.forEach { screen ->
+                        val selected = currentRoute == screen.route
+                        NavigationBarItem(
+                            selected = selected,
+                            onClick = {
+                                navController.navigate(screen.route) {
+                                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                    launchSingleTop = true
+                                    restoreState = true
                                 }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        },
-                        icon = {
-                            Icon(
-                                imageVector = if (selected) screen.filledIcon else screen.outlinedIcon,
-                                contentDescription = screen.title
-                            )
-                        },
-                        alwaysShowLabel = false
-                    )
+                            },
+                            icon = {
+                                Icon(
+                                    imageVector = if (selected) screen.filledIcon else screen.outlinedIcon,
+                                    contentDescription = screen.title
+                                )
+                            },
+                            alwaysShowLabel = false
+                        )
+                    }
                 }
             }
         }
@@ -169,6 +171,17 @@ fun MainScreen(
             }
             composable(Screen.Inbox.route) {
                 ComplaintInboxScreen()
+            }
+            composable(Screen.Polls.route) {
+                PollsScreen()
+            }
+            composable(Screen.Messages.route) {
+                MessagesScreen(onOpenConversation = { conversationId, otherUid ->
+                    navController.navigate("chat/$conversationId/$otherUid")
+                })
+            }
+            composable(ROUTE_CHAT) {
+                ChatScreen(onBack = { navController.popBackStack() })
             }
             composable(ROUTE_POST_ANNOUNCEMENT) {
                 PostAnnouncementScreen(onBack = { navController.popBackStack() })

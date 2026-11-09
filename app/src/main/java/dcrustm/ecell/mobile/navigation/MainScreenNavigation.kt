@@ -3,18 +3,22 @@ package dcrustm.ecell.mobile.navigation
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Campaign
+import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.filled.Feedback
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Inbox
 import androidx.compose.material.icons.filled.ManageAccounts
 import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.HowToVote
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Campaign
+import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.Feedback
 import androidx.compose.material.icons.outlined.Group
 import androidx.compose.material.icons.outlined.Inbox
 import androidx.compose.material.icons.outlined.ManageAccounts
 import androidx.compose.material.icons.outlined.People
+import androidx.compose.material.icons.outlined.HowToVote
 import androidx.compose.ui.graphics.vector.ImageVector
 import dcrustm.ecell.mobile.domain.model.ROLE
 
@@ -63,6 +67,16 @@ sealed class Screen(
         Icons.Filled.Inbox, Icons.Outlined.Inbox,
         visibleTo = setOf(ROLE.COORDINATOR)
     )
+
+    object Polls : Screen(
+        "polls", "Voting",
+        Icons.Filled.HowToVote, Icons.Outlined.HowToVote
+    )
+
+    object Messages : Screen(
+        "messages", "Messages",
+        Icons.Filled.ChatBubble, Icons.Outlined.ChatBubbleOutline
+    )
 }
 
 fun screensForRole(role: ROLE): List<Screen> = listOf(
@@ -72,5 +86,7 @@ fun screensForRole(role: ROLE): List<Screen> = listOf(
     Screen.MyCommittee,
     Screen.Complaints,
     Screen.Members,
-    Screen.Inbox
+    Screen.Inbox,
+    Screen.Polls,
+    Screen.Messages
 ).filter { role in it.visibleTo }

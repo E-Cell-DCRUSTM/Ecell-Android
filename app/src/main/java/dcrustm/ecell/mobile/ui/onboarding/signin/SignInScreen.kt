@@ -4,7 +4,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -20,7 +19,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -47,11 +45,10 @@ fun SignInScreen(
     modifier: Modifier = Modifier,
     onContinueWithGoogleClick: () -> Unit,
     onEmailSignInClick: (String, String) -> Unit,
-    onTestSignInClick: () -> Unit,
     isLoading: Boolean = false,
     errorMessage: String? = null
 ) {
-    var email by remember { mutableStateOf("sinet700@gmail.com") }
+    var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
 
     Column(
@@ -168,27 +165,6 @@ fun SignInScreen(
                 )
                 Text("Continue with Google", style = MaterialTheme.typography.bodyLarge)
             }
-        }
-
-        Spacer(modifier.height(8.dp))
-
-        OutlinedButton(
-            onClick = onTestSignInClick,
-            enabled = !isLoading,
-            modifier = Modifier
-                .align(Alignment.CenterHorizontally)
-                .fillMaxWidth(0.9f)
-                .height(46.dp)
-                .padding(horizontal = 20.dp),
-            shape = RoundedCornerShape(12.dp),
-            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
-        ) {
-            Text(
-                "Anonymous Test Bypass",
-                style = MaterialTheme.typography.bodySmall,
-                maxLines = 1,
-                textAlign = TextAlign.Center
-            )
         }
 
         if (errorMessage != null) {

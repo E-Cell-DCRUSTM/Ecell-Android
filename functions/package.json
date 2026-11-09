@@ -7,7 +7,8 @@
   },
   "scripts": {
     "build": "tsc",
-    "migrate:contacts": "npm run build && node lib/migrateContacts.js"
+    "migrate:contacts": "npm run build && node lib/migrateContacts.js",
+    "test": "npm run build && node --test test/*.test.cjs"
   },
   "dependencies": {
     "firebase-admin": "^14.2.0",

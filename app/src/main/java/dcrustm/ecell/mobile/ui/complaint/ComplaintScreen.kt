@@ -97,7 +97,7 @@ fun ComplaintScreen(
                 Spacer(Modifier.height(6.dp))
                 OutlinedTextField(
                     value = title,
-                    onValueChange = { title = it; titleError = "" },
+                onValueChange = { if (it.length <= 120) title = it; titleError = "" },
                     modifier = Modifier.fillMaxWidth(),
                     placeholder = { Text("Brief summary of the issue") },
                     singleLine = true,
@@ -115,7 +115,7 @@ fun ComplaintScreen(
                 Spacer(Modifier.height(6.dp))
                 OutlinedTextField(
                     value = body,
-                    onValueChange = { body = it; bodyError = "" },
+                onValueChange = { if (it.length <= 5000) body = it; bodyError = "" },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(160.dp),
@@ -172,7 +172,7 @@ private fun SubmittedState(modifier: Modifier = Modifier) {
             fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(8.dp))
         Text(
-            "The coordinator has been notified. You'll receive a response when it's reviewed.",
+            "Only the coordinator can see who submitted this complaint. You can check its status in My Complaints.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center

@@ -101,7 +101,7 @@ fun DocumentSnapshot.toEvent(): EventItem? {
         committee = committeeName?.let { safeEnum(it, Committee.NONE) },
         createdByUid = getString("createdByUid") ?: "",
         createdByName = getString("createdByName") ?: "",
-        createdAt = getLong("createdAt") ?: 0L
+        createdAt = getTimestamp("createdAt")?.toDate()?.time ?: getLong("createdAt") ?: 0L
     )
 }
 
@@ -127,6 +127,6 @@ fun DocumentSnapshot.toComplaint(): Complaint? {
         filerCommittee = safeEnum(getString("filerCommittee"), Committee.NONE),
         status = safeEnum(getString("status"), ComplaintStatus.OPEN),
         response = getString("response") ?: "",
-        createdAt = getLong("createdAt") ?: 0L
+        createdAt = getTimestamp("createdAt")?.toDate()?.time ?: getLong("createdAt") ?: 0L
     )
 }

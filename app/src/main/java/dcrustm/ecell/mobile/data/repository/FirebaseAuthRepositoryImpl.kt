@@ -3,8 +3,6 @@ package dcrustm.ecell.mobile.data.repository
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.FieldValue
-import com.google.firebase.firestore.SetOptions
 import dcrustm.ecell.mobile.data.firebase.awaitResult
 import dcrustm.ecell.mobile.data.firebase.toFirestoreMap
 import dcrustm.ecell.mobile.domain.auth.AuthError
@@ -60,49 +58,6 @@ class FirebaseAuthRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun signInAsTestUser(): AuthResult {
-        return try {
-            val result = firebaseAuth.signInAnonymously().awaitResult()
-            val firebaseUser = result.user
-                ?: return AuthError("Test sign-in failed.")
-
-            val uid = firebaseUser.uid
-            val docRef = firestore.collection("users").document(uid)
-            val contactRef = firestore.collection("userContacts").document(uid)
-            val snapshot = docRef.get().awaitResult()
-
-            if (!snapshot.exists()) {
-                val testMember = Member(
-                    uid = uid,
-                    name = "Test User",
-                    email = "test.user@dcrustm.ac.in",
-                    phone = "",
-                    year = 1,
-                    branch = "Computer Science & Engineering",
-                    committee = Committee.NONE,
-                    role = ROLE.PENDING,
-                    bio = "",
-                    profilePhotoUrl = "",
-                    joinedAt = System.currentTimeMillis(),
-                    isApproved = false
-                )
-                docRef.set(testMember.toFirestoreMap()).awaitResult()
-                contactRef.set(
-                    mapOf("email" to testMember.email, "phone" to "", "committee" to Committee.NONE.name)
-                ).awaitResult()
-            }
-
-            AuthSuccess(accessToken = uid, refreshToken = "")
-        } catch (e: Exception) {
-            val msg = e.message ?: ""
-            if (msg.contains("administrator only") || msg.contains("operation is restricted")) {
-                AuthError("Anonymous sign-in is disabled in Firebase. Enable it: Firebase Console -> Authentication -> Sign-in method -> Anonymous.")
-            } else {
-                AuthError(msg.ifBlank { "Test sign-in failed" })
-            }
-        }
-    }
-
     override fun signOut() {
         firebaseAuth.signOut()
     }
@@ -114,7 +69,6 @@ class FirebaseAuthRepositoryImpl @Inject constructor(
         photoUrl: String
     ) {
         val docRef = firestore.collection("users").document(uid)
-        val contactRef = firestore.collection("userContacts").document(uid)
         val snapshot = docRef.get().awaitResult()
 
         if (!snapshot.exists()) {
@@ -132,31 +86,61 @@ class FirebaseAuthRepositoryImpl @Inject constructor(
                 joinedAt = System.currentTimeMillis(),
                 isApproved = false
             )
-            docRef.set(newMember.toFirestoreMap()).awaitResult()
-            contactRef.set(
-                mapOf("email" to email, "phone" to "", "committee" to Committee.NONE.name)
-            ).awaitResult()
-        } else {
-            val privateEmail = snapshot.getString("email") ?: email
-            val privatePhone = snapshot.getString("phone") ?: ""
-            val committee = snapshot.getString("committee") ?: Committee.NONE.name
-            contactRef.set(
-                mapOf("email" to privateEmail, "phone" to privatePhone, "committee" to committee),
-                SetOptions.merge()
-            ).awaitResult()
-            if (snapshot.contains("email") || snapshot.contains("phone")) {
-                docRef.update(
-                    mapOf("email" to FieldValue.delete(), "phone" to FieldValue.delete())
-                ).awaitResult()
+            try {
+                docRef.set(newMember.toFirestoreMap()).awaitResult()
+                ensureContactDocument(uid, email, "", Committee.NONE.name)
+                return
+            } catch (createError: Exception) {
+                // Two devices may register the same newly authenticated user
+                // at once. Reuse the winning profile rather than failing the
+                // other sign-in attempt.
+                val createdByAnotherDevice = docRef.get().awaitResult()
+                if (!createdByAnotherDevice.exists()) throw createError
+                ensureContactDocument(
+                    uid = uid,
+                    fallbackEmail = email,
+                    legacyPhone = createdByAnotherDevice.getString("phone") ?: "",
+                    committee = createdByAnotherDevice.getString("committee") ?: Committee.NONE.name,
+                    legacyEmail = createdByAnotherDevice.getString("email")
+                )
+                return
             }
-            // Refresh profile fields from Google without touching role/isApproved/committee.
-            docRef.set(
+        }
+
+        // Existing contact records are deliberately left untouched here: a
+        // sign-in must never reset a member's phone number or assigned
+        // committee. Legacy fields stay readable to their owner until the
+        // explicit Admin SDK migration moves and removes them.
+        ensureContactDocument(
+            uid = uid,
+            fallbackEmail = email,
+            legacyPhone = snapshot.getString("phone") ?: "",
+            committee = snapshot.getString("committee") ?: Committee.NONE.name,
+            legacyEmail = snapshot.getString("email")
+        )
+    }
+
+    private suspend fun ensureContactDocument(
+        uid: String,
+        fallbackEmail: String,
+        legacyPhone: String,
+        committee: String,
+        legacyEmail: String? = null
+    ) {
+        val contactRef = firestore.collection("userContacts").document(uid)
+        if (contactRef.get().awaitResult().exists()) return
+
+        try {
+            contactRef.set(
                 mapOf(
-                    "name" to displayName,
-                    "profilePhotoUrl" to photoUrl
-                ),
-                SetOptions.merge()
+                    "email" to (legacyEmail ?: fallbackEmail),
+                    "phone" to legacyPhone,
+                    "committee" to committee
+                )
             ).awaitResult()
+        } catch (createError: Exception) {
+            // A concurrent sign-in may have created the contact document.
+            if (!contactRef.get().awaitResult().exists()) throw createError
         }
     }
 }

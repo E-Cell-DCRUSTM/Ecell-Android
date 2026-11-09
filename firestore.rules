@@ -27,6 +27,74 @@ service cloud.firestore {
       return isSignedIn() && userExists(myUid()) ? userData(myUid()).role : null;
     }
 
+    function validCommittee(value) {
+      return value in [
+        'NONE', 'EVENTS', 'CORPORATE', 'MARKETING', 'DESIGN',
+        'SOCIAL_MEDIA', 'STARTUP', 'WEB_TECH', 'STRATEGY'
+      ];
+    }
+
+    function validRole(value) {
+      return value in ['PENDING', 'MEMBER', 'COMMITTEE_HEAD', 'COORDINATOR'];
+    }
+
+    function validCoordinatorAssignment(data, existing) {
+      return (data.isApproved == true
+              && data.role in ['MEMBER', 'COMMITTEE_HEAD', 'COORDINATOR']
+              && data.committee != 'NONE'
+              && (data.role != 'COORDINATOR' || existing.role == 'COORDINATOR'))
+             || (data.isApproved == false
+                 && data.role == 'PENDING'
+                 && data.committee == 'NONE');
+    }
+
+    function validContentAudience(data) {
+      return data.keys().hasAll(['committee'])
+             && (data.committee == null
+                 || (validCommittee(data.committee) && data.committee != 'NONE'));
+    }
+
+    function validPollOption(options, index) {
+      return options[index] is string
+             && options[index].size() > 0
+             && options[index].size() <= 80;
+    }
+
+    function validPollOptions(options) {
+      return options is list
+             && options.size() >= 2
+             && options.size() <= 8
+             && validPollOption(options, 0)
+             && validPollOption(options, 1)
+             && (options.size() < 3 || validPollOption(options, 2))
+             && (options.size() < 4 || validPollOption(options, 3))
+             && (options.size() < 5 || validPollOption(options, 4))
+             && (options.size() < 6 || validPollOption(options, 5))
+             && (options.size() < 7 || validPollOption(options, 6))
+             && (options.size() < 8 || validPollOption(options, 7));
+    }
+
+    function validMemberProfile(data) {
+      return data.keys().hasAll([
+               'uid', 'name', 'year', 'branch', 'committee', 'role', 'bio',
+               'profilePhotoUrl', 'joinedAt', 'isApproved'
+             ])
+             && data.keys().hasOnly([
+               'uid', 'name', 'year', 'branch', 'committee', 'role', 'bio',
+               'profilePhotoUrl', 'joinedAt', 'isApproved'
+             ])
+             && data.uid is string
+             && data.name is string && data.name.size() <= 100
+             && data.year is int && data.year >= 1 && data.year <= 8
+             && data.branch is string && data.branch.size() <= 100
+             && validCommittee(data.committee)
+             && validRole(data.role)
+             && data.bio is string && data.bio.size() <= 1000
+             && data.profilePhotoUrl is string && data.profilePhotoUrl.size() <= 2048
+             && data.joinedAt is int && data.joinedAt >= 0
+             && data.isApproved is bool;
+    }
+
     function isCoordinator() {
       return isApprovedUser() && myRole() == 'COORDINATOR';
     }
@@ -41,37 +109,72 @@ service cloud.firestore {
              && committee == userData(myUid()).committee;
     }
 
+    function canViewCommitteeContent(data) {
+      return isApprovedUser()
+             && (isCoordinator()
+                 || (validContentAudience(data)
+                     && (data.committee == null
+                         || data.committee == userData(myUid()).committee)));
+    }
+
+    function isApprovedUid(uid) {
+      return exists(/databases/$(database)/documents/users/$(uid))
+             && get(/databases/$(database)/documents/users/$(uid)).data.isApproved == true;
+    }
+
+    function canViewPollData(poll) {
+      return isApprovedUser()
+             && (isCoordinator()
+                 || poll.audienceCommittee == 'ALL'
+                 || poll.audienceCommittee == userData(myUid()).committee);
+    }
+
+    function canManagePollData(poll) {
+      return isCoordinator()
+             || (isHead()
+                 && poll.createdByUid == myUid()
+                 && poll.audienceCommittee == userData(myUid()).committee);
+    }
+
     // users/{uid} — public member directory profile, without contact fields.
     match /users/{userId} {
       // Legacy contact fields and push tokens remain readable only by the
       // document owner until the one-time migration has moved them out.
       allow read: if isSignedIn() && (myUid() == userId
                     || (isApprovedUser()
+                        && (resource.data.isApproved == true || isCoordinator())
                         && !resource.data.keys().hasAny(['email', 'phone', 'fcmTokens'])));
 
       // First-time self-registration must use safe, unprivileged defaults.
       allow create: if isSignedIn()
                     && myUid() == userId
-                    && request.resource.data.keys().hasOnly([
-                      'uid', 'name', 'year', 'branch', 'committee', 'role', 'bio',
-                      'profilePhotoUrl', 'joinedAt', 'isApproved'
-                    ])
+                    && validMemberProfile(request.resource.data)
+                    && request.resource.data.uid == userId
                     && request.resource.data.role == 'PENDING'
+                    && request.resource.data.committee == 'NONE'
                     && request.resource.data.isApproved == false;
 
       // Coordinator can edit any profile (approvals, role/committee changes).
       // A member can edit their own profile but not elevate themselves.
-      allow update: if isCoordinator()
+      allow update: if (isCoordinator()
+                       && myUid() != userId
+                       && validMemberProfile(request.resource.data)
+                       && request.resource.data.uid == userId
+                       && request.resource.data.joinedAt == resource.data.joinedAt
+                       && validCoordinatorAssignment(request.resource.data, resource.data)
+                       && request.resource.data.diff(resource.data).affectedKeys()
+                           .hasOnly(['role', 'committee', 'isApproved']))
                     || (isSignedIn() && myUid() == userId
-                        && request.resource.data.keys().hasOnly([
-                          'uid', 'name', 'year', 'branch', 'committee', 'role', 'bio',
-                          'profilePhotoUrl', 'joinedAt', 'isApproved'
-                        ])
-                        && request.resource.data.role == resource.data.role
-                        && request.resource.data.isApproved == resource.data.isApproved
-                        && request.resource.data.committee == resource.data.committee);
+                        && validMemberProfile(request.resource.data)
+                        && request.resource.data.uid == resource.data.uid
+                        && request.resource.data.joinedAt == resource.data.joinedAt
+                        && request.resource.data.diff(resource.data).affectedKeys()
+                            .hasOnly(['name', 'year', 'branch', 'bio', 'profilePhotoUrl']));
 
-      allow delete: if isCoordinator();
+      allow delete: if isCoordinator()
+                    && myUid() != userId
+                    && resource.data.isApproved == false
+                    && resource.data.role == 'PENDING';
     }
 
     // Contact details are kept outside the public member directory document.
@@ -83,10 +186,33 @@ service cloud.firestore {
                     || (isHead() && resource.data.committee == userData(myUid()).committee);
       allow create: if isSignedIn() && myUid() == userId
                     && userExists(userId)
+                    && request.resource.data.keys().hasAll(['email', 'phone', 'committee'])
                     && request.resource.data.keys().hasOnly(['email', 'phone', 'committee'])
+                    && request.resource.data.email is string
+                    && request.resource.data.email.size() <= 254
+                    && request.resource.data.phone is string
+                    && request.resource.data.phone.size() <= 32
+                    && validCommittee(request.resource.data.committee)
                     && request.resource.data.committee == userData(userId).committee;
-      allow update: if isCoordinator()
+      allow update: if (isCoordinator()
+                       && request.resource.data.keys().hasAll(['email', 'phone', 'committee'])
+                       && request.resource.data.keys().hasOnly(['email', 'phone', 'committee'])
+                       && request.resource.data.email is string
+                       && request.resource.data.email.size() <= 254
+                       && request.resource.data.phone is string
+                       && request.resource.data.phone.size() <= 32
+                       && validCommittee(request.resource.data.committee)
+                       && request.resource.data.committee
+                           == getAfter(/databases/$(database)/documents/users/$(userId)).data.committee
+                       && request.resource.data.diff(resource.data).affectedKeys()
+                           .hasOnly(['email', 'phone', 'committee']))
                     || (isSignedIn() && myUid() == userId
+                        && request.resource.data.keys().hasAll(['email', 'phone', 'committee'])
+                        && request.resource.data.keys().hasOnly(['email', 'phone', 'committee'])
+                        && request.resource.data.email is string
+                        && request.resource.data.email.size() <= 254
+                        && request.resource.data.phone is string
+                        && request.resource.data.phone.size() <= 32
                         && request.resource.data.committee == resource.data.committee
                         && request.resource.data.diff(resource.data).affectedKeys()
                             .hasOnly(['email', 'phone']));
@@ -105,17 +231,166 @@ service cloud.firestore {
       allow delete: if isSignedIn() && myUid() == userId;
     }
 
+    // polls/{pollId} — private ballots are separated from per-user receipts.
+    // Ballot documents contain a choice but never the voter's UID. Receipts
+    // contain only a voted flag and are readable only by their owner.
+    match /polls/{pollId} {
+      allow get, list: if canViewPollData(resource.data);
+
+      allow create: if isApprovedUser()
+                    && request.resource.data.keys().hasOnly([
+                      'title', 'question', 'options', 'audienceCommittee',
+                      'createdByUid', 'createdByName', 'isOpen', 'createdAt'
+                    ])
+                    && request.resource.data.title is string
+                    && request.resource.data.title.size() > 0
+                    && request.resource.data.title.size() <= 120
+                    && request.resource.data.question is string
+                    && request.resource.data.question.size() > 0
+                    && request.resource.data.question.size() <= 500
+                    && validPollOptions(request.resource.data.options)
+                    && request.resource.data.createdByUid == myUid()
+                    && request.resource.data.createdByName == userData(myUid()).name
+                    && request.resource.data.isOpen == true
+                    && request.resource.data.createdAt == request.time
+                    && ((isCoordinator()
+                         && (request.resource.data.audienceCommittee == 'ALL'
+                             || request.resource.data.audienceCommittee in [
+                               'EVENTS', 'CORPORATE', 'MARKETING', 'DESIGN',
+                               'SOCIAL_MEDIA', 'STARTUP', 'WEB_TECH', 'STRATEGY'
+                             ]))
+                        || isHeadOfCommittee(request.resource.data.audienceCommittee));
+
+      // Polls can only be closed by the coordinator or their committee head.
+      // Closing is one-way and is the event that reveals anonymized results.
+      allow update: if canManagePollData(resource.data)
+                    && resource.data.isOpen == true
+                    && request.resource.data.isOpen == false
+                    && request.resource.data.closedAt == request.time
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                        .hasOnly(['isOpen', 'closedAt']);
+
+      allow delete: if false;
+
+      match /voterReceipts/{userId} {
+        allow get: if isSignedIn() && myUid() == userId;
+        allow list: if false;
+        allow create: if isApprovedUser()
+                      && myUid() == userId
+                      && canViewPollData(get(/databases/$(database)/documents/polls/$(pollId)).data)
+                      && get(/databases/$(database)/documents/polls/$(pollId)).data.isOpen == true
+                      && request.resource.data.keys().hasOnly(['voted', 'ballotId'])
+                      && request.resource.data.voted == true
+                      && request.resource.data.ballotId is string
+                      && request.resource.data.ballotId.size() > 0
+                      && !exists(/databases/$(database)/documents/polls/$(pollId)/ballots/$(request.resource.data.ballotId))
+                      && existsAfter(/databases/$(database)/documents/polls/$(pollId)/ballots/$(request.resource.data.ballotId))
+                      && getAfter(/databases/$(database)/documents/polls/$(pollId)/ballots/$(request.resource.data.ballotId)).data.castAt == request.time;
+        allow update, delete: if false;
+      }
+
+      match /ballots/{ballotId} {
+        // The choice is hidden while the poll is open, including from its creator.
+        // Once closed, members see anonymous choices for tallying only.
+        allow get, list: if canViewPollData(get(/databases/$(database)/documents/polls/$(pollId)).data)
+                         && get(/databases/$(database)/documents/polls/$(pollId)).data.isOpen == false;
+
+        // One immutable owner-only receipt names exactly one random ballot.
+        // The two rules cross-check each other's after-state, preventing
+        // multi-ballot batches, orphan receipts, and retry races.
+        allow create: if isApprovedUser()
+                      && canViewPollData(get(/databases/$(database)/documents/polls/$(pollId)).data)
+                      && get(/databases/$(database)/documents/polls/$(pollId)).data.isOpen == true
+                      && request.resource.data.keys().hasOnly(['optionIndex', 'castAt'])
+                      && request.resource.data.optionIndex is int
+                      && request.resource.data.optionIndex >= 0
+                      && request.resource.data.optionIndex < get(/databases/$(database)/documents/polls/$(pollId)).data.options.size()
+                      && request.resource.data.castAt == request.time
+                      && !exists(/databases/$(database)/documents/polls/$(pollId)/voterReceipts/$(myUid()))
+                      && existsAfter(/databases/$(database)/documents/polls/$(pollId)/voterReceipts/$(myUid()))
+                      && getAfter(/databases/$(database)/documents/polls/$(pollId)/voterReceipts/$(myUid())).data.voted == true
+                      && getAfter(/databases/$(database)/documents/polls/$(pollId)/voterReceipts/$(myUid())).data.ballotId == ballotId;
+        allow update, delete: if false;
+      }
+    }
+
+    // Direct text conversations. Only the two approved participants can read
+    // a thread; messages are append-only and limited to plain text.
+    match /conversations/{conversationId} {
+      // A missing thread is not readable either; clients find an existing
+      // thread through the participant-filtered list query before creating it.
+      allow get: if isApprovedUser() && myUid() in resource.data.participants;
+      allow list: if isApprovedUser() && myUid() in resource.data.participants;
+
+      allow create: if isApprovedUser()
+                    && request.resource.data.keys().hasOnly([
+                      'participants', 'createdByUid', 'createdAt', 'lastMessage',
+                      'lastSenderUid', 'lastMessageId', 'updatedAt'
+                    ])
+                    && request.resource.data.participants is list
+                    && request.resource.data.participants.size() == 2
+                    && request.resource.data.participants[0] < request.resource.data.participants[1]
+                    && conversationId == request.resource.data.participants[0]
+                        + '_' + request.resource.data.participants[1]
+                    && myUid() in request.resource.data.participants
+                    && isApprovedUid(request.resource.data.participants[0])
+                    && isApprovedUid(request.resource.data.participants[1])
+                    && request.resource.data.createdByUid == myUid()
+                    && request.resource.data.createdAt == request.time
+                    && request.resource.data.updatedAt == request.time
+                    && request.resource.data.lastMessage == ''
+                    && request.resource.data.lastSenderUid == ''
+                    && request.resource.data.lastMessageId == '';
+
+      allow update: if isApprovedUser()
+                    && myUid() in resource.data.participants
+                    && request.resource.data.participants == resource.data.participants
+                    && request.resource.data.createdByUid == resource.data.createdByUid
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                        .hasOnly(['lastMessage', 'lastSenderUid', 'lastMessageId', 'updatedAt'])
+                    && request.resource.data.lastSenderUid == myUid()
+                    && request.resource.data.lastMessage is string
+                    && request.resource.data.lastMessage.size() > 0
+                    && request.resource.data.lastMessage.size() <= 4000
+                    && request.resource.data.updatedAt == request.time
+                    && existsAfter(/databases/$(database)/documents/conversations/$(conversationId)/messages/$(request.resource.data.lastMessageId))
+                    && getAfter(/databases/$(database)/documents/conversations/$(conversationId)/messages/$(request.resource.data.lastMessageId)).data.senderUid == myUid()
+                    && getAfter(/databases/$(database)/documents/conversations/$(conversationId)/messages/$(request.resource.data.lastMessageId)).data.text == request.resource.data.lastMessage;
+
+      allow delete: if false;
+
+      match /messages/{messageId} {
+        function isConversationParticipant() {
+          return isApprovedUser()
+                 && myUid() in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants;
+        }
+
+        allow get, list: if isConversationParticipant();
+        allow create: if isConversationParticipant()
+                      && request.resource.data.keys().hasOnly(['senderUid', 'text', 'sentAt'])
+                      && request.resource.data.senderUid == myUid()
+                      && request.resource.data.text is string
+                      && request.resource.data.text.size() > 0
+                      && request.resource.data.text.size() <= 4000
+                      && request.resource.data.sentAt == request.time;
+        allow update, delete: if false;
+      }
+    }
+
     // announcements/{id}
     match /announcements/{id} {
-      allow read: if isApprovedUser();
+      allow read: if canViewCommitteeContent(resource.data);
 
       allow create: if request.resource.data.authorUid == myUid()
+                    && validContentAudience(request.resource.data)
                     && (isCoordinator()
                         || isHeadOfCommittee(request.resource.data.committee));
 
-      allow update: if isCoordinator()
+      allow update: if (isCoordinator()
+                        && validContentAudience(request.resource.data))
                     || (isHead() && resource.data.authorUid == myUid()
                         && request.resource.data.authorUid == resource.data.authorUid
+                        && validContentAudience(request.resource.data)
                         && isHeadOfCommittee(resource.data.committee)
                         && request.resource.data.committee == resource.data.committee);
 
@@ -126,15 +401,18 @@ service cloud.firestore {
 
     // events/{id} — the timetable/schedule (meetings, deadlines, sessions).
     match /events/{id} {
-      allow read: if isApprovedUser();
+      allow read: if canViewCommitteeContent(resource.data);
 
       allow create: if request.resource.data.createdByUid == myUid()
+                    && validContentAudience(request.resource.data)
                     && (isCoordinator()
                         || isHeadOfCommittee(request.resource.data.committee));
 
-      allow update: if isCoordinator()
+      allow update: if (isCoordinator()
+                        && validContentAudience(request.resource.data))
                     || (isHead() && resource.data.createdByUid == myUid()
                         && request.resource.data.createdByUid == resource.data.createdByUid
+                        && validContentAudience(request.resource.data)
                         && isHeadOfCommittee(resource.data.committee)
                         && request.resource.data.committee == resource.data.committee);
 
@@ -146,13 +424,38 @@ service cloud.firestore {
     // complaints/{id} — identity is only exposed to the coordinator and to the
     // member who filed it; nobody else can list or read other members' complaints.
     match /complaints/{id} {
-      allow create: if isApprovedUser() && request.resource.data.filerUid == myUid();
+      allow create: if isApprovedUser()
+                    && request.resource.data.keys().hasAll([
+                      'title', 'body', 'filerUid', 'filerName', 'filerCommittee',
+                      'status', 'response', 'createdAt'
+                    ])
+                    && request.resource.data.keys().hasOnly([
+                      'title', 'body', 'filerUid', 'filerName', 'filerCommittee',
+                      'status', 'response', 'createdAt'
+                    ])
+                    && request.resource.data.title is string
+                    && request.resource.data.title.size() > 0
+                    && request.resource.data.title.size() <= 120
+                    && request.resource.data.body is string
+                    && request.resource.data.body.size() >= 20
+                    && request.resource.data.body.size() <= 5000
+                    && request.resource.data.filerUid == myUid()
+                    && request.resource.data.filerName == userData(myUid()).name
+                    && request.resource.data.filerCommittee == userData(myUid()).committee
+                    && request.resource.data.status == 'OPEN'
+                    && request.resource.data.response == ''
+                    && request.resource.data.createdAt == request.time;
 
       allow read: if isCoordinator()
                     || (isSignedIn() && resource.data.filerUid == myUid());
 
-      // Only the coordinator reviews/responds to complaints.
-      allow update: if isCoordinator();
+      // Only status and response may change after a complaint is filed.
+      allow update: if isCoordinator()
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                        .hasOnly(['status', 'response'])
+                    && request.resource.data.status in ['OPEN', 'IN_REVIEW', 'RESOLVED']
+                    && request.resource.data.response is string
+                    && request.resource.data.response.size() <= 5000;
 
       allow delete: if isCoordinator();
     }

@@ -48,7 +48,6 @@ fun SignInApp(
         SignInScreen(
             onContinueWithGoogleClick = { viewModel.continueWithGoogle(credentialManager, activity) },
             onEmailSignInClick = { email, pass -> viewModel.signInWithEmail(email, pass) },
-            onTestSignInClick = { viewModel.signInAsTestUser() },
             isLoading = authState is AuthState.Loading,
             errorMessage = (authState as? AuthState.Error)?.message
         )
