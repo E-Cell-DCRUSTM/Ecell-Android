@@ -1,6 +1,8 @@
 package dcrustm.ecell.mobile
 
 import dcrustm.ecell.mobile.domain.model.Member
+import dcrustm.ecell.mobile.domain.model.MemberApplication
+import dcrustm.ecell.mobile.domain.model.MembershipApplicationStatus
 import dcrustm.ecell.mobile.domain.model.ROLE
 import dcrustm.ecell.mobile.session.UserSessionEvent
 import dcrustm.ecell.mobile.session.SessionFailureCategory
@@ -21,6 +23,30 @@ class UserSessionStateTest {
         assertEquals(UserSessionState.Approved(approved), transitionSessionState(
             UserSessionState.Pending(pending), UserSessionEvent.ProfileLoaded(approved)
         ))
+    }
+
+    @Test
+    fun applicationLifecycleSeparatesIncompletePendingRejectedAndApproved() {
+        val member = Member(uid = "applicant", role = ROLE.PENDING, isApproved = false)
+        assertEquals(
+            UserSessionState.ProfileIncomplete(member, MemberApplication(uid = member.uid, status = MembershipApplicationStatus.INCOMPLETE)),
+            transitionSessionState(UserSessionState.Loading, UserSessionEvent.ProfileLoaded(
+                member, MemberApplication(uid = member.uid, status = MembershipApplicationStatus.INCOMPLETE)
+            ))
+        )
+        assertEquals(
+            UserSessionState.Pending(member),
+            transitionSessionState(UserSessionState.Loading, UserSessionEvent.ProfileLoaded(
+                member, MemberApplication(uid = member.uid, status = MembershipApplicationStatus.PENDING)
+            ))
+        )
+        assertEquals(
+            UserSessionState.Rejected(member, "Correct your department"),
+            transitionSessionState(UserSessionState.Loading, UserSessionEvent.ProfileLoaded(
+                member, MemberApplication(uid = member.uid, status = MembershipApplicationStatus.REJECTED,
+                    feedback = "Correct your department")
+            ))
+        )
     }
 
     @Test

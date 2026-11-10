@@ -21,6 +21,14 @@ class MainViewModel @Inject constructor(
     fun signOut() = sessionManager.signOut()
     fun retryProfileObservation() = sessionManager.retryProfileObservation()
 
+    fun reapplyForMembership() {
+        val uid = sessionManager.currentUser.value?.uid ?: return
+        viewModelScope.launch {
+            runCatching { memberRepository.reapplyForMembership(uid) }
+                .onSuccess { sessionManager.retryProfileObservation() }
+        }
+    }
+
     fun registerPushToken() {
         val uid = sessionManager.currentUser.value?.uid ?: return
         viewModelScope.launch {

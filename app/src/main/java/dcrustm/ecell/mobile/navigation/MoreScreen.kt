@@ -28,6 +28,8 @@ fun MoreScreen(
     role: ROLE,
     onOpenRoute: (Screen) -> Unit,
     onOpenProfile: () -> Unit,
+    onOpenMemberId: () -> Unit,
+    onOpenVerifyMember: () -> Unit,
     onOpenAbout: () -> Unit
 ) {
     val destinations = moreScreensForRole(role)
@@ -74,6 +76,24 @@ fun MoreScreen(
                     leadingContent = { Icon(Icons.Outlined.AccountCircle, contentDescription = null) },
                     modifier = Modifier.clickable(onClick = onOpenProfile)
                 )
+            }
+            item {
+                ListItem(
+                    headlineContent = { Text("E-Cell Member ID", fontWeight = FontWeight.Medium) },
+                    supportingContent = { Text("View, save or share your approved membership card") },
+                    leadingContent = { Icon(Icons.Outlined.AccountCircle, contentDescription = null) },
+                    modifier = Modifier.clickable(onClick = onOpenMemberId)
+                )
+            }
+            if (role == ROLE.COORDINATOR) {
+                item {
+                    ListItem(
+                        headlineContent = { Text("Verify a Member ID", fontWeight = FontWeight.Medium) },
+                        supportingContent = { Text("Scan a member's QR or enter their ID") },
+                        leadingContent = { Icon(Icons.Outlined.AccountCircle, contentDescription = null) },
+                        modifier = Modifier.clickable(onClick = onOpenVerifyMember)
+                    )
+                }
             }
             item {
                 ListItem(

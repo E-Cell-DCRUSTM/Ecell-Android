@@ -36,6 +36,7 @@ import dcrustm.ecell.mobile.ui.events.EventsScreen
 import dcrustm.ecell.mobile.ui.home.HomeScreen
 import dcrustm.ecell.mobile.ui.home.PostAnnouncementScreen
 import dcrustm.ecell.mobile.ui.poll.PollsScreen
+import dcrustm.ecell.mobile.ui.onboarding.profile.ProfileSetupScreen
 
 private const val ROUTE_POST_ANNOUNCEMENT = "post_announcement"
 private const val ROUTE_CREATE_EVENT = "create_event"
@@ -55,6 +56,8 @@ fun MainScreen(
             state = sessionState,
             onRetry = { viewModel.retryProfileObservation() },
             onSignOut = { viewModel.signOut() },
+            onReapply = { viewModel.reapplyForMembership() },
+            profileSetupContent = { ProfileSetupScreen() },
             approvedContent = {}
         )
         return
@@ -174,6 +177,8 @@ fun MainScreen(
                     role = role,
                     onOpenRoute = { screen -> navController.navigate(screen.route) },
                     onOpenProfile = { rootNavController.navigate(RootScreen.Profile.route) },
+                    onOpenMemberId = { rootNavController.navigate(RootScreen.MemberId.route) },
+                    onOpenVerifyMember = { rootNavController.navigate(RootScreen.VerifyMember.route) },
                     onOpenAbout = { rootNavController.navigate(RootScreen.Info.route) }
                 )
             }

@@ -21,17 +21,26 @@ val releaseSigningConfigured = releaseSigningValues.all { !it.isNullOrBlank() }
 if (releaseSigningValues.any { !it.isNullOrBlank() } && !releaseSigningConfigured) {
     throw GradleException("Set all four ANDROID_KEYSTORE/ANDROID_KEY environment variables to configure release signing.")
 }
+fun configuredBooleanProperty(name: String): Boolean = providers.gradleProperty(name).orNull?.let { value ->
+    value.toBooleanStrictOrNull()
+        ?: throw GradleException("Gradle property '$name' must be either true or false.")
+} ?: false
+
+val profilePhoneRequired = configuredBooleanProperty("ecellProfilePhoneRequired")
+val profileEnrollmentRequired = configuredBooleanProperty("ecellProfileEnrollmentRequired")
 
 android {
     namespace = "dcrustm.ecell.mobile"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "dcrustm.ecell.mobile"
         minSdk = 29
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 3
         versionName = "1.2.0"
+        buildConfigField("boolean", "PROFILE_PHONE_REQUIRED", profilePhoneRequired.toString())
+        buildConfigField("boolean", "PROFILE_ENROLLMENT_REQUIRED", profileEnrollmentRequired.toString())
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -125,6 +134,11 @@ dependencies {
 
     // Firebase Cloud Messaging (push notifications)
     implementation("com.google.firebase:firebase-messaging")
+    implementation("com.google.firebase:firebase-storage")
+
+    // QR rendering for the private, coordinator-verifiable member ID.
+    implementation("com.google.zxing:core:3.5.3")
+    implementation("com.google.android.gms:play-services-code-scanner:16.1.0")
 
     // Google Sign-In SDK
     implementation("com.google.android.gms:play-services-auth:21.3.0")

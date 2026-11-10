@@ -16,6 +16,8 @@ import androidx.navigation.navArgument
 import dcrustm.ecell.mobile.ui.about.AboutUsScreen
 import dcrustm.ecell.mobile.ui.directory.MemberDetailScreen
 import dcrustm.ecell.mobile.ui.profile.ProfileScreen
+import dcrustm.ecell.mobile.ui.memberid.MemberIdScreen
+import dcrustm.ecell.mobile.ui.memberid.VerifyMemberIdScreen
 import dcrustm.ecell.mobile.session.UserSessionState
 
 @Composable
@@ -45,7 +47,18 @@ fun RootApp(
             popEnterTransition = { fadeIn(animationSpec = tween(160)) },
             popExitTransition = { fadeOut(animationSpec = tween(120)) }
         ) {
-            ProfileScreen(onDismiss = { rootNavController.popBackStack() })
+            ProfileScreen(
+                onDismiss = { rootNavController.popBackStack() },
+                onOpenMemberId = { rootNavController.navigate(RootScreen.MemberId.route) }
+            )
+        }
+
+        composable(route = RootScreen.MemberId.route) {
+            MemberIdScreen(onBack = { rootNavController.popBackStack() })
+        }
+
+        composable(route = RootScreen.VerifyMember.route) {
+            VerifyMemberIdScreen(onBack = { rootNavController.popBackStack() })
         }
 
         composable(

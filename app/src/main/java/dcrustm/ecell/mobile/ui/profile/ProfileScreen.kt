@@ -1,5 +1,11 @@
 package dcrustm.ecell.mobile.ui.profile
 
+import android.net.Uri
+
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,12 +16,17 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.outlined.Badge
+import androidx.compose.material.icons.outlined.AddAPhoto
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -36,6 +47,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -46,25 +60,40 @@ import dcrustm.ecell.mobile.ui.home.InitialsAvatar
 @Composable
 fun ProfileScreen(
     onDismiss: () -> Unit,
+    onOpenMemberId: () -> Unit,
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
+    val context = LocalContext.current
     val member by viewModel.currentUser.collectAsState()
     val isSaving by viewModel.isSaving.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
+    val photoPreview by viewModel.photoPreview.collectAsState()
+    val isUploadingPhoto by viewModel.isUploadingPhoto.collectAsState()
 
+    var name by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
     var bio by remember { mutableStateOf("") }
     var initialized by remember { mutableStateOf(false) }
 
     LaunchedEffect(member?.uid) {
         if (!initialized && member != null) {
+            name = member?.name ?: ""
             phone = member?.phone ?: ""
             bio = member?.bio ?: ""
             initialized = true
         }
     }
 
-    val hasChanges = member != null && (phone != member?.phone || bio != member?.bio)
+    val hasChanges = member != null && (name != member?.name || phone != member?.phone || bio != member?.bio)
+    val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        uri?.let(viewModel::selectPhoto)
+    }
+    var cameraUri by remember { mutableStateOf<Uri?>(null) }
+    val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { captured ->
+        val uri = cameraUri
+        cameraUri = null
+        if (captured && uri != null) viewModel.selectPhoto(uri)
+    }
 
     Box(
         modifier = Modifier
@@ -97,13 +126,51 @@ fun ProfileScreen(
                         style = MaterialTheme.typography.bodySmall)
                     Spacer(Modifier.height(8.dp))
                 }
-                InitialsAvatar(initials = m.initials, size = 88)
+                if (photoPreview != null) {
+                    Image(
+                        bitmap = photoPreview!!.asImageBitmap(),
+                        contentDescription = "Your profile photo",
+                        modifier = Modifier.size(88.dp).clip(CircleShape)
+                    )
+                } else InitialsAvatar(initials = m.initials, size = 88)
+                Spacer(Modifier.height(8.dp))
+                OutlinedButton(
+                    onClick = { photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                    enabled = !isUploadingPhoto,
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Icon(Icons.Outlined.AddAPhoto, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text(if (isUploadingPhoto) "Uploading photo…" else "Change photo")
+                }
+                OutlinedButton(
+                    onClick = {
+                        runCatching { createProfileCaptureUri(context) }
+                            .onSuccess { uri -> cameraUri = uri; camera.launch(uri) }
+                    },
+                    enabled = !isUploadingPhoto,
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Text("Take photo")
+                }
                 Spacer(Modifier.height(12.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(m.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
                 }
                 Spacer(Modifier.height(4.dp))
                 RolePill(m.role)
+                if (m.isApproved) {
+                    Spacer(Modifier.height(12.dp))
+                    OutlinedButton(
+                        onClick = onOpenMemberId,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.Outlined.Badge, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("  View E-Cell Member ID")
+                    }
+                }
                 Spacer(Modifier.height(4.dp))
                 Text(
                     "${m.committee.displayName} · ${m.yearLabel}",
@@ -111,6 +178,15 @@ fun ProfileScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(Modifier.height(24.dp))
+
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it.take(100) },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Full name") },
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp)
+                )
 
                 Surface(
                     shape = RoundedCornerShape(12.dp),
@@ -165,7 +241,7 @@ fun ProfileScreen(
                 Spacer(Modifier.height(16.dp))
 
                 Button(
-                    onClick = { viewModel.updateProfile(phone, bio) },
+                    onClick = { viewModel.updateProfile(name, phone, bio) },
                     enabled = hasChanges && !isSaving,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp)

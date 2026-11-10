@@ -7,6 +7,8 @@ import dcrustm.ecell.mobile.domain.model.Complaint
 import dcrustm.ecell.mobile.domain.model.ComplaintStatus
 import dcrustm.ecell.mobile.domain.model.EventItem
 import dcrustm.ecell.mobile.domain.model.Member
+import dcrustm.ecell.mobile.domain.model.MemberApplication
+import dcrustm.ecell.mobile.domain.model.MembershipApplicationStatus
 import dcrustm.ecell.mobile.domain.model.ROLE
 
 private inline fun <reified T : Enum<T>> safeEnum(name: String?, default: T): T =
@@ -44,6 +46,23 @@ fun DocumentSnapshot.toMember(): Member? {
         profilePhotoUrl = getString("profilePhotoUrl") ?: "",
         joinedAt = getLong("joinedAt") ?: 0L,
         isApproved = getBoolean("isApproved") ?: false
+    )
+}
+
+fun DocumentSnapshot.toMemberApplication(uid: String = id): MemberApplication? {
+    if (!exists()) return null
+    return MemberApplication(
+        uid = uid,
+        enrollmentNumber = getString("enrollmentNumber") ?: "",
+        section = getString("section") ?: "",
+        preferredCommittee = safeEnum(getString("preferredCommittee"), Committee.NONE),
+        status = MembershipApplicationStatus.fromStoredValue(getString("applicationStatus")),
+        profileCompleted = getBoolean("profileCompleted") ?: true,
+        feedback = getString("feedback") ?: "",
+        activeStep = (getLong("activeStep") ?: 1L).toInt().coerceIn(1, 5),
+        memberId = getString("memberId") ?: "",
+        submittedAt = getTimestamp("submittedAt")?.toDate()?.time
+            ?: getLong("submittedAt") ?: 0L
     )
 }
 

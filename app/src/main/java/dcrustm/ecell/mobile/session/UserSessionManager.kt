@@ -4,7 +4,9 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import dcrustm.ecell.mobile.data.firebase.toMember
+import dcrustm.ecell.mobile.data.firebase.toMemberApplication
 import dcrustm.ecell.mobile.domain.model.Member
+import dcrustm.ecell.mobile.domain.model.MemberApplication
 import dcrustm.ecell.mobile.domain.model.MemberContact
 import dcrustm.ecell.mobile.domain.model.ROLE
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,6 +37,11 @@ class UserSessionManager @Inject constructor(
 
     private var userDocListener: ListenerRegistration? = null
     private var contactDocListener: ListenerRegistration? = null
+    private var applicationDocListener: ListenerRegistration? = null
+    private var profileMember: Member? = null
+    private var currentApplication: MemberApplication? = null
+    private var contactLoaded = false
+    private var applicationLoaded = false
     private var currentContact = MemberContact()
     private var observationGeneration = 0
 
@@ -45,6 +52,12 @@ class UserSessionManager @Inject constructor(
             userDocListener = null
             contactDocListener?.remove()
             contactDocListener = null
+            applicationDocListener?.remove()
+            applicationDocListener = null
+            profileMember = null
+            currentApplication = null
+            contactLoaded = false
+            applicationLoaded = false
             currentContact = MemberContact()
 
             val uid = auth.currentUser?.uid
@@ -60,6 +73,10 @@ class UserSessionManager @Inject constructor(
     private fun attachListeners(uid: String) {
         _currentUser.value = null
         currentContact = MemberContact()
+        profileMember = null
+        currentApplication = null
+        contactLoaded = false
+        applicationLoaded = false
         transition(UserSessionEvent.ObservationStarted)
         val generation = ++observationGeneration
 
@@ -78,7 +95,8 @@ class UserSessionManager @Inject constructor(
                                 _currentUser.value = null
                                 transition(UserSessionEvent.ProfileMissing)
                             } else {
-                                updateMember(member)
+                                profileMember = member
+                                publishSessionIfReady()
                             }
                         }
                         .onFailure(::failSession)
@@ -94,15 +112,29 @@ class UserSessionManager @Inject constructor(
                         email = snapshot.getString("email") ?: "",
                         phone = snapshot.getString("phone") ?: ""
                     ) else MemberContact()
-                    _currentUser.value?.let(::updateMember)
+                    contactLoaded = true
+                    publishSessionIfReady()
+                }
+            }
+        applicationDocListener = firestore.collection("memberApplications").document(uid)
+            .addSnapshotListener { snapshot, error ->
+                if (generation != observationGeneration) return@addSnapshotListener
+                if (error != null) {
+                    failSession(error)
+                } else {
+                    currentApplication = snapshot?.toMemberApplication(uid)
+                    applicationLoaded = true
+                    publishSessionIfReady()
                 }
             }
     }
 
-    private fun updateMember(member: Member) {
-        val updated = member.copy(email = currentContact.email, phone = currentContact.phone)
+    private fun publishSessionIfReady() {
+        val baseMember = profileMember ?: return
+        if (!contactLoaded || !applicationLoaded) return
+        val updated = baseMember.copy(email = currentContact.email, phone = currentContact.phone)
         _currentUser.value = updated
-        transition(UserSessionEvent.ProfileLoaded(updated))
+        transition(UserSessionEvent.ProfileLoaded(updated, currentApplication))
     }
 
     private fun failSession(error: Throwable) {
@@ -111,6 +143,12 @@ class UserSessionManager @Inject constructor(
         userDocListener = null
         contactDocListener?.remove()
         contactDocListener = null
+        applicationDocListener?.remove()
+        applicationDocListener = null
+        profileMember = null
+        currentApplication = null
+        contactLoaded = false
+        applicationLoaded = false
         _currentUser.value = null
         transition(UserSessionEvent.ObservationFailed(sessionFailureCategory(error)))
     }
@@ -127,6 +165,8 @@ class UserSessionManager @Inject constructor(
         userDocListener = null
         contactDocListener?.remove()
         contactDocListener = null
+        applicationDocListener?.remove()
+        applicationDocListener = null
         if (uid == null) {
             _currentUser.value = null
             transition(UserSessionEvent.SignedOut)

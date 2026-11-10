@@ -68,6 +68,7 @@ fun ManageMembersScreen(
     val allMembers = memberState.items
     val pendingState by viewModel.pendingState.collectAsState()
     val pendingMembers = pendingState.items
+    val pendingPhotos by viewModel.pendingPhotos.collectAsState()
     val canApprove = viewModel.canApprove
     val operationFeedback by viewModel.operationFeedback.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -205,13 +206,16 @@ fun ManageMembersScreen(
                             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
                             verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            items(pendingMembers, key = { it.uid }) { member ->
+                            items(pendingMembers, key = { it.member.uid }) { application ->
+                                val member = application.member
                                 PendingMemberCard(
-                                    member = member,
+                                    application = application,
+                                    photo = pendingPhotos[member.uid],
                                     onApprove = { committee, role ->
                                         viewModel.approve(member.uid, member.name, committee, role)
                                     },
-                                    onReject = { viewModel.reject(member.uid, member.name) }
+                                    onReject = { message -> viewModel.reject(member.uid, member.name, message) },
+                                    onCorrection = { message -> viewModel.requestCorrection(member.uid, member.name, message) }
                                 )
                             }
                         }

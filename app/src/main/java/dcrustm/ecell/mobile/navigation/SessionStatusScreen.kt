@@ -24,12 +24,16 @@ fun SessionGateContent(
     state: UserSessionState,
     onRetry: () -> Unit,
     onSignOut: () -> Unit,
+    onReapply: () -> Unit = {},
+    profileSetupContent: @Composable () -> Unit = {},
     approvedContent: @Composable () -> Unit
 ) {
     when (state) {
         UserSessionState.SignedOut -> SessionStatusScreen(state, onRetry, onSignOut)
         UserSessionState.Loading -> SessionStatusScreen(state, onRetry, onSignOut)
+        is UserSessionState.ProfileIncomplete -> profileSetupContent()
         is UserSessionState.Pending -> PendingApprovalScreen(onSignOut)
+        is UserSessionState.Rejected -> SessionStatusScreen(state, onRetry, onSignOut, onReapply)
         is UserSessionState.Approved -> approvedContent()
         UserSessionState.ProfileUnavailable,
         UserSessionState.NetworkFailure,
@@ -42,41 +46,48 @@ fun SessionGateContent(
 fun SessionStatusScreen(
     state: UserSessionState,
     onRetry: () -> Unit,
-    onSignOut: () -> Unit
+    onSignOut: () -> Unit,
+    onReapply: () -> Unit = {}
 ) {
-    val (title, message, canRetry, canSignOut) = when (state) {
+    val copy = when (state) {
         UserSessionState.Loading -> StatusCopy(
-            "Checking your account", "Loading your E-Cell membership profile.", false, false
+            "Checking your account", "Loading your E-Cell membership profile.", false, false, false
         )
         UserSessionState.ProfileUnavailable -> StatusCopy(
             "Profile unavailable",
             "Your account is signed in, but its membership profile could not be found. Retry, or sign out and sign in again to restore or reapply for membership.",
-            true,
-            true
+            true, true, false
         )
         UserSessionState.NetworkFailure -> StatusCopy(
             "Connection problem",
             "We could not reach your membership profile. Check your connection and retry.",
-            true,
-            true
+            true, true, false
         )
         UserSessionState.PermissionDenied -> StatusCopy(
             "Access denied",
             "Firebase denied access to your membership profile. Retry, or sign out and use the account approved for this app.",
-            true,
-            true
+            true, true, false
         )
         UserSessionState.RetryableFailure -> StatusCopy(
             "Could not load your profile",
             "Something interrupted the profile check. Retry, or sign out and sign in again.",
-            true,
-            true
+            true, true, false
         )
         UserSessionState.SignedOut -> StatusCopy(
-            "Signed out", "Sign in to continue to the E-Cell workspace.", false, false
+            "Signed out", "Sign in to continue to the E-Cell workspace.", false, false, false
+        )
+        is UserSessionState.Rejected -> StatusCopy(
+            "Application declined",
+            state.feedback.ifBlank {
+                "Your coordinator declined this application. You can review your saved details and submit a new request."
+            },
+            false, true, true
+        )
+        is UserSessionState.ProfileIncomplete -> StatusCopy(
+            "Complete your profile", "Your progress is saved as you go.", false, false, false
         )
         is UserSessionState.Pending, is UserSessionState.Approved -> StatusCopy(
-            "Account ready", "", false, false
+            "Account ready", "", false, false, false
         )
     }
 
@@ -89,18 +100,22 @@ fun SessionStatusScreen(
             CircularProgressIndicator()
             Spacer(Modifier.height(24.dp))
         }
-        Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold,
+        Text(copy.title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold,
             textAlign = TextAlign.Center)
-        if (message.isNotBlank()) {
+        if (copy.message.isNotBlank()) {
             Spacer(Modifier.height(12.dp))
-            Text(message, style = MaterialTheme.typography.bodyMedium,
+            Text(copy.message, style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
         }
-        if (canRetry) {
+        if (copy.canRetry) {
             Spacer(Modifier.height(24.dp))
             Button(onClick = onRetry) { Text("Retry") }
         }
-        if (canSignOut) {
+        if (copy.canReapply) {
+            Spacer(Modifier.height(24.dp))
+            Button(onClick = onReapply) { Text("Review and reapply") }
+        }
+        if (copy.canSignOut) {
             Spacer(Modifier.height(8.dp))
             OutlinedButton(onClick = onSignOut) { Text("Sign out") }
         }
@@ -111,5 +126,6 @@ private data class StatusCopy(
     val title: String,
     val message: String,
     val canRetry: Boolean,
-    val canSignOut: Boolean
+    val canSignOut: Boolean,
+    val canReapply: Boolean
 )

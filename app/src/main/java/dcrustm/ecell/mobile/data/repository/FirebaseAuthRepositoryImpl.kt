@@ -3,6 +3,7 @@ package dcrustm.ecell.mobile.data.repository
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FieldValue
 import dcrustm.ecell.mobile.data.firebase.awaitResult
 import dcrustm.ecell.mobile.data.firebase.toFirestoreMap
 import dcrustm.ecell.mobile.domain.auth.AuthError
@@ -29,8 +30,7 @@ class FirebaseAuthRepositoryImpl @Inject constructor(
             ensureUserDocument(
                 uid = firebaseUser.uid,
                 displayName = firebaseUser.displayName ?: "",
-                email = firebaseUser.email ?: "",
-                photoUrl = firebaseUser.photoUrl?.toString() ?: ""
+                email = firebaseUser.email ?: ""
             )
 
             AuthSuccess(accessToken = firebaseUser.uid, refreshToken = "")
@@ -48,8 +48,7 @@ class FirebaseAuthRepositoryImpl @Inject constructor(
             ensureUserDocument(
                 uid = firebaseUser.uid,
                 displayName = firebaseUser.displayName ?: email.substringBefore("@"),
-                email = firebaseUser.email ?: email,
-                photoUrl = firebaseUser.photoUrl?.toString() ?: ""
+                email = firebaseUser.email ?: email
             )
 
             AuthSuccess(accessToken = firebaseUser.uid, refreshToken = "")
@@ -65,8 +64,7 @@ class FirebaseAuthRepositoryImpl @Inject constructor(
     private suspend fun ensureUserDocument(
         uid: String,
         displayName: String,
-        email: String,
-        photoUrl: String
+        email: String
     ) {
         val docRef = firestore.collection("users").document(uid)
         val snapshot = docRef.get().awaitResult()
@@ -82,12 +80,18 @@ class FirebaseAuthRepositoryImpl @Inject constructor(
                 committee = Committee.NONE,
                 role = ROLE.PENDING,
                 bio = "",
-                profilePhotoUrl = photoUrl,
+                profilePhotoUrl = "",
                 joinedAt = System.currentTimeMillis(),
                 isApproved = false
             )
             try {
-                docRef.set(newMember.toFirestoreMap()).awaitResult()
+                val batch = firestore.batch()
+                batch.set(docRef, newMember.toFirestoreMap())
+                batch.set(
+                    firestore.collection("memberApplications").document(uid),
+                    initialMemberApplication()
+                )
+                batch.commit().awaitResult()
                 ensureContactDocument(uid, email, "", Committee.NONE.name)
                 return
             } catch (createError: Exception) {
@@ -119,6 +123,20 @@ class FirebaseAuthRepositoryImpl @Inject constructor(
             legacyEmail = snapshot.getString("email")
         )
     }
+
+    private fun initialMemberApplication(): Map<String, Any?> = mapOf(
+        "enrollmentNumber" to "",
+        "section" to "",
+        "preferredCommittee" to Committee.NONE.name,
+        "profileCompleted" to false,
+        "applicationStatus" to "INCOMPLETE",
+        "feedback" to "",
+        "activeStep" to 1,
+        "memberId" to "",
+        "createdAt" to FieldValue.serverTimestamp(),
+        "updatedAt" to FieldValue.serverTimestamp(),
+        "submittedAt" to null
+    )
 
     private suspend fun ensureContactDocument(
         uid: String,
