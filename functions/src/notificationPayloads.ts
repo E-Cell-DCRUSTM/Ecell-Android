@@ -5,3 +5,10 @@ export function complaintUpdateNotification(): { title: string; body: string } {
     body: "Your complaint status or response changed. Sign in to view details.",
   };
 }
+
+export function membershipApprovalNotification(): { title: string; body: string } {
+  return {
+    title: "E-Cell membership approved",
+    body: "Your membership is active. Sign in to view your E-Cell Member ID.",
+  };
+}

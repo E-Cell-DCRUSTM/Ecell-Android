@@ -3,7 +3,7 @@ import { initializeApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import { getMessaging } from "firebase-admin/messaging";
 import { normalizeFcmTokens } from "./fcmTokens";
-import { complaintUpdateNotification } from "./notificationPayloads";
+import { complaintUpdateNotification, membershipApprovalNotification } from "./notificationPayloads";
 
 initializeApp();
 const db = getFirestore();
@@ -113,3 +113,18 @@ export const onComplaintUpdated = onDocumentUpdated("complaints/{id}", async (ev
   const notification = complaintUpdateNotification();
   await sendToTokens(tokens, notification.title, notification.body);
 });
+
+export const onMembershipApplicationApproved = onDocumentUpdated(
+  "memberApplications/{uid}",
+  async (event) => {
+    const before = event.data?.before.data();
+    const after = event.data?.after.data();
+    if (!before || !after) return;
+    if (before.applicationStatus !== "PENDING" || after.applicationStatus !== "APPROVED") return;
+
+    const uid = event.params.uid;
+    const tokens = await tokensForUser(uid);
+    const notification = membershipApprovalNotification();
+    await sendToTokens(tokens, notification.title, notification.body);
+  },
+);
