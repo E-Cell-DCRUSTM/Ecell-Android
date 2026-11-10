@@ -1,117 +1,85 @@
 package dcrustm.ecell.mobile.navigation
 
-import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavType
+import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.google.accompanist.navigation.animation.AnimatedNavHost
+import androidx.navigation.navArgument
 import dcrustm.ecell.mobile.ui.about.AboutUsScreen
+import dcrustm.ecell.mobile.ui.directory.MemberDetailScreen
 import dcrustm.ecell.mobile.ui.profile.ProfileScreen
+import dcrustm.ecell.mobile.ui.memberid.MemberIdScreen
+import dcrustm.ecell.mobile.ui.memberid.VerifyMemberIdScreen
+import dcrustm.ecell.mobile.session.UserSessionState
 
-@OptIn(ExperimentalAnimationApi::class)
 @Composable
-fun RootApp() {
-    // Use the animated nav controller from accompanist for custom transitions.
+fun RootApp(
+    onSignedOut: () -> Unit = {},
+    viewModel: RootAppViewModel = hiltViewModel()
+) {
+    val sessionState by viewModel.sessionState.collectAsState()
+    LaunchedEffect(sessionState) {
+        if (sessionState == UserSessionState.SignedOut) onSignedOut()
+    }
+
     val rootNavController = rememberNavController()
 
-    AnimatedNavHost(
+    NavHost(
         navController = rootNavController,
         startDestination = RootScreen.Main.route
     ) {
-        // Main route: contains your bottom navigation scaffold.
         composable(route = RootScreen.Main.route) {
             MainScreen(rootNavController = rootNavController)
         }
 
-        // Profile route: full screen modal with custom transitions.
         composable(
             route = RootScreen.Profile.route,
-            enterTransition = {
-                // Slide in from bottom (rising effect)
-                slideInVertically(
-                    initialOffsetY = { fullHeight -> fullHeight },
-                    animationSpec = tween(durationMillis = 300)
-                )
-            },
-            exitTransition = {
-                // Slide out downwards (fast shrinking)
-                slideOutVertically(
-                    targetOffsetY = { fullHeight -> fullHeight },
-                    animationSpec = tween(durationMillis = 150)
-                )
-            },
-            popEnterTransition = {
-                slideInVertically(
-                    initialOffsetY = { fullHeight -> fullHeight },
-                    animationSpec = tween(durationMillis = 300)
-                )
-            },
-            popExitTransition = {
-                slideOutVertically(
-                    targetOffsetY = { fullHeight -> fullHeight },
-                    animationSpec = tween(durationMillis = 150)
-                )
-            }
+            enterTransition = { fadeIn(animationSpec = tween(160)) },
+            exitTransition = { fadeOut(animationSpec = tween(120)) },
+            popEnterTransition = { fadeIn(animationSpec = tween(160)) },
+            popExitTransition = { fadeOut(animationSpec = tween(120)) }
         ) {
-            ProfileScreen(onDismiss = { rootNavController.popBackStack() })
+            ProfileScreen(
+                onDismiss = { rootNavController.popBackStack() },
+                onOpenMemberId = { rootNavController.navigate(RootScreen.MemberId.route) }
+            )
         }
-        // Info route: full screen modal with similar custom transitions.
+
+        composable(route = RootScreen.MemberId.route) {
+            MemberIdScreen(onBack = { rootNavController.popBackStack() })
+        }
+
+        composable(route = RootScreen.VerifyMember.route) {
+            VerifyMemberIdScreen(onBack = { rootNavController.popBackStack() })
+        }
+
         composable(
             route = RootScreen.Info.route,
-            enterTransition = {
-                slideInVertically(
-                    initialOffsetY = { fullHeight -> fullHeight },
-                    animationSpec = tween(durationMillis = 300)
-                )
-            },
-            exitTransition = {
-                slideOutVertically(
-                    targetOffsetY = { fullHeight -> fullHeight },
-                    animationSpec = tween(durationMillis = 150)
-                )
-            },
-            popEnterTransition = {
-                slideInVertically(
-                    initialOffsetY = { fullHeight -> fullHeight },
-                    animationSpec = tween(durationMillis = 300)
-                )
-            },
-            popExitTransition = {
-                slideOutVertically(
-                    targetOffsetY = { fullHeight -> fullHeight },
-                    animationSpec = tween(durationMillis = 150)
-                )
-            }
+            enterTransition = { fadeIn(animationSpec = tween(160)) },
+            exitTransition = { fadeOut(animationSpec = tween(120)) },
+            popEnterTransition = { fadeIn(animationSpec = tween(160)) },
+            popExitTransition = { fadeOut(animationSpec = tween(120)) }
         ) {
-            // Assume that InfoScreen is implemented elsewhere.
             AboutUsScreen(onDismiss = { rootNavController.popBackStack() })
+        }
+
+        composable(
+            route = RootScreen.MemberDetail.route,
+            arguments = listOf(navArgument("uid") { type = NavType.StringType }),
+            enterTransition = { fadeIn(animationSpec = tween(160)) },
+            exitTransition = { fadeOut(animationSpec = tween(120)) },
+            popEnterTransition = { fadeIn(animationSpec = tween(160)) },
+            popExitTransition = { fadeOut(animationSpec = tween(120)) }
+        ) {
+            MemberDetailScreen(onBack = { rootNavController.popBackStack() })
         }
     }
 }
-
-
-// Dummy profile screen for now
-// TODO: Implement real Profile Screen asap.
-
-//@Composable
-//fun ProfileScreen(onDismiss: () -> Unit) {
-//    Surface(
-//        modifier = Modifier
-//            .fillMaxSize()
-//            .padding(16.dp)
-//    ) {
-//        Column {
-//            Text(
-//                text = "Profile Screen",
-//                style = MaterialTheme.typography.titleLarge,
-//                modifier = Modifier.padding(bottom = 16.dp)
-//            )
-//            Button(onClick = onDismiss) {
-//                Text("Close")
-//            }
-//        }
-//    }
-//}

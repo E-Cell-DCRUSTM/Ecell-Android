@@ -4,13 +4,10 @@
 
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
-    <uses-permission android:name="android.permission.CAMERA"/>
-
 
     <application
         android:name=".MainApplication"
-        android:usesCleartextTraffic="true"
-        android:allowBackup="true"
+        android:allowBackup="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
@@ -19,10 +16,23 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.ECellDCRUSTM"
         tools:targetApi="31">
+        <meta-data
+            android:name="com.google.mlkit.vision.DEPENDENCIES"
+            android:value="barcode_ui" />
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:label="@string/app_name"
             android:theme="@style/Theme.ECellDCRUSTM">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -30,6 +40,18 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <service
+            android:name=".messaging.EcellMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="ecell_updates" />
     </application>
 
 </manifest>

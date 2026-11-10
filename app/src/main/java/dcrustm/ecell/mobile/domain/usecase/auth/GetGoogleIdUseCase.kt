@@ -1,13 +1,15 @@
 package dcrustm.ecell.mobile.domain.usecase.auth
 
 import android.app.Activity
-import android.util.Base64
 import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
+import androidx.credentials.exceptions.GetCredentialCancellationException
+import androidx.credentials.exceptions.GetCredentialException
+import androidx.credentials.exceptions.NoCredentialException
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import dcrustm.ecell.mobile.domain.model.GoogleProviderUser
-import org.json.JSONObject
+import dcrustm.ecell.mobile.R
 import javax.inject.Inject
 
 class GetGoogleIdUseCase @Inject constructor() {
@@ -17,11 +19,13 @@ class GetGoogleIdUseCase @Inject constructor() {
         context: Activity
     ) : GoogleProviderUser {
 
-        // Build the Google ID token option
+        // Build the Google ID token option.
+        // This must be the Firebase project's WEB (server) OAuth client id —
+        // found in google-services.json under oauth_client with client_type: 3.
         val googleIdOption = GetGoogleIdOption.Builder()
             .setAutoSelectEnabled(false)
             .setFilterByAuthorizedAccounts(false)
-            .setServerClientId("532056230783-tqdvcsfp3f5liro17mriddd1k94jiqjq.apps.googleusercontent.com")
+            .setServerClientId(context.getString(R.string.default_web_client_id))
             .build()
 
         // Create the credential request
@@ -30,43 +34,33 @@ class GetGoogleIdUseCase @Inject constructor() {
             .build()
 
         // Display the Google sign-in dialog and get a credential response
-        val result = credentialManager.getCredential(request = request, context = context)
+        val result = try {
+            credentialManager.getCredential(request = request, context = context)
+        } catch (_: GetCredentialCancellationException) {
+            throw Exception("Sign-in cancelled")
+        } catch (_: NoCredentialException) {
+            throw Exception("No Google accounts found on this device. Please add a Google account in device settings.")
+        } catch (e: GetCredentialException) {
+            throw Exception(e.message ?: "Google sign-in failed")
+        }
 
         // Extract the Google ID token from the response
-        val tokenCredential =
-            GoogleIdTokenCredential.createFrom(result.credential.data)
+        val credential = result.credential
+        val tokenCredential = when (credential.type) {
+            GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL,
+            GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_SIWG_CREDENTIAL ->
+                GoogleIdTokenCredential.createFrom(credential.data)
+            else -> throw IllegalStateException("Google sign-in returned an unsupported credential type.")
+        }
 
         val googleProviderUser = GoogleProviderUser(
-            oauthGoogle = extractGoogleUserId(tokenCredential.idToken),
+            idToken = tokenCredential.idToken,
             fullName = tokenCredential.displayName,
             photoUrl = tokenCredential.profilePictureUri.toString(),
             email = tokenCredential.id
         )
 
-        println(googleProviderUser)
         return googleProviderUser
 
     }
-
-    private fun extractGoogleUserId(idToken: String): String? {
-        // Split the JWT into header, payload, and signature
-        val parts = idToken.split(".")
-        if (parts.size != 3) return null
-
-        return try {
-            // The payload is the second part of the JWT
-            val payload = parts[1]
-            // Decode the payload using Base64 URL-safe decoding
-            val decodedBytes = Base64.decode(payload, Base64.URL_SAFE or Base64.NO_WRAP)
-            val decodedPayload = String(decodedBytes, Charsets.UTF_8)
-            // Convert the decoded payload to a JSON object
-            val json = JSONObject(decodedPayload)
-            // Return the "sub" claim which holds the unique Google user id
-            json.getString("sub")
-        } catch (e: Exception) {
-            e.printStackTrace()
-            null
-        }
-    }
-
 }

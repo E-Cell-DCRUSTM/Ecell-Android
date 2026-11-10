@@ -1,6 +1,10 @@
 # Gradle files
 .gradle/
+.kotlin/
 build/
+functions/lib/
+functions/node_modules/
+firestore-tests/node_modules/
 
 # Local configuration file (sdk path, etc)
 local.properties

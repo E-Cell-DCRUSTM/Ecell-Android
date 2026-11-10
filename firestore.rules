@@ -1,0 +1,841 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function userExists(uid) {
+      return exists(/databases/$(database)/documents/users/$(uid));
+    }
+
+    function userData(uid) {
+      return get(/databases/$(database)/documents/users/$(uid)).data;
+    }
+
+    function myUid() {
+      return request.auth.uid;
+    }
+
+    function isApprovedUser() {
+      return isSignedIn() && userExists(myUid()) && userData(myUid()).isApproved == true;
+    }
+
+    function myRole() {
+      return isSignedIn() && userExists(myUid()) ? userData(myUid()).role : null;
+    }
+
+    function validCommittee(value) {
+      return value in [
+        'NONE', 'EVENTS', 'CORPORATE', 'MARKETING', 'DESIGN',
+        'SOCIAL_MEDIA', 'STARTUP', 'WEB_TECH', 'STRATEGY'
+      ];
+    }
+
+    function validRole(value) {
+      return value in ['PENDING', 'MEMBER', 'COMMITTEE_HEAD', 'COORDINATOR'];
+    }
+
+    function validContactEmail(value) {
+      return value is string
+             && value.size() > 0
+             && value.size() <= 254
+             && value.matches('^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$');
+    }
+
+    function validContactPhone(value) {
+      // Blank is valid because contact numbers are optional by default. A
+      // supplied value may contain common separators but must have 7–15 digits.
+      return value is string
+             && value.size() <= 32
+             && (value.size() == 0
+                 || value.matches('^[+() .-]*([0-9][+() .-]*){7,15}$'));
+    }
+
+    function validCoordinatorAssignment(data, existing) {
+      return (data.isApproved == true
+              && data.role in ['MEMBER', 'COMMITTEE_HEAD', 'COORDINATOR']
+              && validCommittee(data.committee)
+              && data.committee != 'NONE'
+              && (data.role != 'COORDINATOR' || existing.role == 'COORDINATOR'))
+             || (data.isApproved == false
+                 && data.role == 'PENDING'
+                 && data.committee == 'NONE');
+    }
+
+    function validContentAudience(data) {
+      return data.keys().hasAll(['committee'])
+             && (data.committee == null
+                 || (data.committee is string
+                     && validCommittee(data.committee)
+                     && data.committee != 'NONE'));
+    }
+
+    function validAnnouncement(data) {
+      return data.keys().hasAll([
+               'title', 'body', 'authorUid', 'authorName', 'committee',
+               'createdAt', 'isPinned', 'attachmentUrl'
+             ])
+             && data.keys().hasOnly([
+               'title', 'body', 'authorUid', 'authorName', 'committee',
+               'createdAt', 'isPinned', 'attachmentUrl'
+             ])
+             && data.title is string && data.title.size() > 0 && data.title.size() <= 120
+             && data.body is string && data.body.size() > 0 && data.body.size() <= 5000
+             && data.authorUid is string && data.authorUid.size() > 0
+             && data.authorName is string && data.authorName.size() > 0 && data.authorName.size() <= 100
+             && data.createdAt is int && data.createdAt >= 0
+             && data.isPinned is bool
+             && data.attachmentUrl is string && data.attachmentUrl.size() <= 2048
+             && validContentAudience(data);
+    }
+
+    function validEvent(data) {
+      return data.keys().hasAll([
+               'title', 'description', 'startTime', 'location', 'isVirtual',
+               'meetingLink', 'committee', 'createdByUid', 'createdByName', 'createdAt'
+             ])
+             && data.keys().hasOnly([
+               'title', 'description', 'startTime', 'location', 'isVirtual',
+               'meetingLink', 'committee', 'createdByUid', 'createdByName', 'createdAt'
+             ])
+             && data.title is string && data.title.size() > 0 && data.title.size() <= 120
+             && data.description is string && data.description.size() <= 2000
+             && data.startTime is int && data.startTime >= 0
+             && data.location is string && data.location.size() <= 200
+             && data.isVirtual is bool
+             && data.meetingLink is string && data.meetingLink.size() <= 2048
+             && (data.isVirtual
+                 ? data.meetingLink.size() > 0
+                 : data.location.size() > 0)
+             && data.createdByUid is string && data.createdByUid.size() > 0
+             && data.createdByName is string && data.createdByName.size() > 0 && data.createdByName.size() <= 100
+             && data.createdAt is int && data.createdAt >= 0
+             && validContentAudience(data);
+    }
+
+    function validPollOption(options, index) {
+      return options[index] is string
+             && options[index].size() > 0
+             && options[index].size() <= 80;
+    }
+
+    function validFcmToken(tokens, index) {
+      return tokens[index] is string
+             && tokens[index].size() > 0
+             && tokens[index].size() <= 4096;
+    }
+
+    // A user may have several signed-in devices, but cannot inflate the
+    // notification fan-out document with arbitrary or unbounded values.
+    function validFcmTokens(tokens) {
+      return tokens is list
+             && tokens.size() <= 20
+             && (tokens.size() < 1 || validFcmToken(tokens, 0))
+             && (tokens.size() < 2 || validFcmToken(tokens, 1))
+             && (tokens.size() < 3 || validFcmToken(tokens, 2))
+             && (tokens.size() < 4 || validFcmToken(tokens, 3))
+             && (tokens.size() < 5 || validFcmToken(tokens, 4))
+             && (tokens.size() < 6 || validFcmToken(tokens, 5))
+             && (tokens.size() < 7 || validFcmToken(tokens, 6))
+             && (tokens.size() < 8 || validFcmToken(tokens, 7))
+             && (tokens.size() < 9 || validFcmToken(tokens, 8))
+             && (tokens.size() < 10 || validFcmToken(tokens, 9))
+             && (tokens.size() < 11 || validFcmToken(tokens, 10))
+             && (tokens.size() < 12 || validFcmToken(tokens, 11))
+             && (tokens.size() < 13 || validFcmToken(tokens, 12))
+             && (tokens.size() < 14 || validFcmToken(tokens, 13))
+             && (tokens.size() < 15 || validFcmToken(tokens, 14))
+             && (tokens.size() < 16 || validFcmToken(tokens, 15))
+             && (tokens.size() < 17 || validFcmToken(tokens, 16))
+             && (tokens.size() < 18 || validFcmToken(tokens, 17))
+             && (tokens.size() < 19 || validFcmToken(tokens, 18))
+             && (tokens.size() < 20 || validFcmToken(tokens, 19));
+    }
+
+    function validPollOptions(options) {
+      return options is list
+             && options.size() >= 2
+             && options.size() <= 8
+             && validPollOption(options, 0)
+             && validPollOption(options, 1)
+             && (options.size() < 3 || validPollOption(options, 2))
+             && (options.size() < 4 || validPollOption(options, 3))
+             && (options.size() < 5 || validPollOption(options, 4))
+             && (options.size() < 6 || validPollOption(options, 5))
+             && (options.size() < 7 || validPollOption(options, 6))
+             && (options.size() < 8 || validPollOption(options, 7));
+    }
+
+    function validMemberProfile(data) {
+      return data.keys().hasAll([
+               'uid', 'name', 'year', 'branch', 'committee', 'role', 'bio',
+               'profilePhotoUrl', 'joinedAt', 'isApproved'
+             ])
+             && data.keys().hasOnly([
+               'uid', 'name', 'year', 'branch', 'committee', 'role', 'bio',
+               'profilePhotoUrl', 'joinedAt', 'isApproved'
+             ])
+             && data.uid is string
+             && data.name is string && data.name.size() <= 100
+             && data.year is int && data.year >= 1 && data.year <= 8
+             && data.branch is string && data.branch.size() <= 100
+             && validCommittee(data.committee)
+             && validRole(data.role)
+             && data.bio is string && data.bio.size() <= 1000
+             && data.profilePhotoUrl is string && data.profilePhotoUrl.size() <= 2048
+             && data.joinedAt is int && data.joinedAt >= 0
+             && data.isApproved is bool;
+    }
+
+    function validMemberId(value) {
+      return value is string && value.matches('EC-[0-9A-F]{16}');
+    }
+
+    function validMemberApplication(data) {
+      return data.keys().hasAll([
+               'enrollmentNumber', 'section', 'preferredCommittee',
+               'profileCompleted', 'applicationStatus', 'feedback',
+               'activeStep', 'memberId', 'createdAt', 'updatedAt', 'submittedAt'
+             ])
+             && data.keys().hasOnly([
+               'enrollmentNumber', 'section', 'preferredCommittee',
+               'profileCompleted', 'applicationStatus', 'feedback',
+               'activeStep', 'memberId', 'createdAt', 'updatedAt', 'submittedAt'
+             ])
+             && data.enrollmentNumber is string && data.enrollmentNumber.size() <= 40
+             && data.section is string && data.section.size() <= 40
+             && validCommittee(data.preferredCommittee)
+             && data.profileCompleted is bool
+             && data.applicationStatus in [
+               'INCOMPLETE', 'PENDING', 'NEEDS_CORRECTION', 'REJECTED', 'APPROVED'
+             ]
+             && ((data.applicationStatus in ['INCOMPLETE', 'NEEDS_CORRECTION']
+                  && data.profileCompleted == false)
+                 || (data.applicationStatus in ['PENDING', 'REJECTED', 'APPROVED']
+                     && data.profileCompleted == true))
+             && data.feedback is string && data.feedback.size() <= 500
+             && data.activeStep is int && data.activeStep >= 1 && data.activeStep <= 5
+             && data.memberId is string && data.memberId.size() <= 24
+             && (data.memberId == '' || validMemberId(data.memberId))
+             && (data.applicationStatus == 'APPROVED'
+                 ? validMemberId(data.memberId)
+                 : data.memberId == '')
+             && data.createdAt is timestamp
+             && data.updatedAt is timestamp
+             && (data.submittedAt == null || data.submittedAt is timestamp);
+    }
+
+    function validProfilePhotoPath(value, userId) {
+      return value == '' || value == 'memberPhotos/' + userId + '/profile.jpg';
+    }
+
+    function validCompletedProfile(userId) {
+      let profile = get(/databases/$(database)/documents/users/$(userId)).data;
+      let contact = get(/databases/$(database)/documents/userContacts/$(userId)).data;
+      return completedUserProfile(profile, userId)
+             && completedUserContact(contact);
+    }
+
+    function completedUserProfile(profile, userId) {
+      return profile.uid == userId
+             && profile.isApproved == false
+             && profile.role == 'PENDING'
+             && profile.committee == 'NONE'
+             && profile.name is string
+             && profile.name.size() >= 2
+             && profile.year is int
+             && profile.year >= 1
+             && profile.year <= 4
+             && profile.branch is string
+             && profile.branch.size() > 0
+             && profile.profilePhotoUrl is string
+             && validProfilePhotoPath(profile.profilePhotoUrl, userId);
+    }
+
+    function completedUserContact(contact) {
+      return validContactEmail(contact.email)
+             && validContactPhone(contact.phone);
+    }
+
+    function validSelfProfileUpdate(newData, oldData, userId) {
+      let changed = newData.diff(oldData).affectedKeys();
+      return newData.uid == oldData.uid
+             && newData.joinedAt == oldData.joinedAt
+             && changed.hasOnly(['name', 'year', 'branch', 'bio', 'profilePhotoUrl'])
+             && (!changed.hasAny(['name'])
+                 || (newData.name is string && newData.name.size() >= 2 && newData.name.size() <= 100))
+             && (!changed.hasAny(['year'])
+                 || (newData.year is int && newData.year >= 1 && newData.year <= 4))
+             && (!changed.hasAny(['branch'])
+                 || (newData.branch is string && newData.branch.size() > 0 && newData.branch.size() <= 100))
+             && (!changed.hasAny(['bio'])
+                 || (newData.bio is string && newData.bio.size() <= 1000))
+             && (!changed.hasAny(['profilePhotoUrl'])
+                 || (newData.profilePhotoUrl is string
+                     && newData.profilePhotoUrl.size() <= 2048
+                     && validProfilePhotoPath(newData.profilePhotoUrl, userId)));
+    }
+
+    function isCoordinator() {
+      return isApprovedUser() && myRole() == 'COORDINATOR';
+    }
+
+    function isHead() {
+      return isApprovedUser() && myRole() == 'COMMITTEE_HEAD';
+    }
+
+    function isHeadOfCommittee(committee) {
+      return isHead() && committee != null
+             && committee != 'NONE'
+             && committee == userData(myUid()).committee;
+    }
+
+    function canViewCommitteeContent(data) {
+      return isApprovedUser()
+             && (isCoordinator()
+                 || (validContentAudience(data)
+                     && (data.committee == null
+                         || data.committee == userData(myUid()).committee)));
+    }
+
+    function isApprovedUid(uid) {
+      return exists(/databases/$(database)/documents/users/$(uid))
+             && get(/databases/$(database)/documents/users/$(uid)).data.isApproved == true;
+    }
+
+    function canViewPollData(poll) {
+      return isApprovedUser()
+             && (isCoordinator()
+                 || poll.audienceCommittee == 'ALL'
+                 || poll.audienceCommittee == userData(myUid()).committee);
+    }
+
+    function canManagePollData(poll) {
+      return isCoordinator()
+             || (isHead()
+                 && poll.createdByUid == myUid()
+                 && poll.audienceCommittee == userData(myUid()).committee);
+    }
+
+    // users/{uid} — public member directory profile, without contact fields.
+    match /users/{userId} {
+      // Legacy contact fields and push tokens remain readable only by the
+      // document owner until the one-time migration has moved them out.
+      allow read: if isSignedIn() && (myUid() == userId
+                    || (isApprovedUser()
+                        && (resource.data.isApproved == true || isCoordinator())
+                        && !resource.data.keys().hasAny(['email', 'phone', 'fcmTokens'])));
+
+      // First-time self-registration must use safe, unprivileged defaults.
+      allow create: if isSignedIn()
+                    && myUid() == userId
+                    && validMemberProfile(request.resource.data)
+                    && request.resource.data.uid == userId
+                    && request.resource.data.role == 'PENDING'
+                    && request.resource.data.committee == 'NONE'
+                    && request.resource.data.isApproved == false
+                    && existsAfter(/databases/$(database)/documents/memberApplications/$(userId))
+                    && getAfter(/databases/$(database)/documents/memberApplications/$(userId)).data.applicationStatus == 'INCOMPLETE'
+                    && getAfter(/databases/$(database)/documents/memberApplications/$(userId)).data.profileCompleted == false;
+
+      // Coordinator can edit any profile (approvals, role/committee changes).
+      // A member can edit their own profile but not elevate themselves.
+      allow update: if (isCoordinator()
+                       && myUid() != userId
+                       && request.resource.data.uid == userId
+                       && request.resource.data.joinedAt == resource.data.joinedAt
+                       && validCoordinatorAssignment(request.resource.data, resource.data)
+                       && (resource.data.isApproved == true
+                           || (existsAfter(/databases/$(database)/documents/memberApplications/$(userId))
+                               && getAfter(/databases/$(database)/documents/memberApplications/$(userId)).data.applicationStatus == 'APPROVED'
+                                && validMemberId(getAfter(/databases/$(database)/documents/memberApplications/$(userId)).data.memberId)))
+                       && request.resource.data.diff(resource.data).affectedKeys()
+                           .hasOnly(['role', 'committee', 'isApproved']))
+                    || (isSignedIn() && myUid() == userId
+                         && validSelfProfileUpdate(request.resource.data, resource.data, userId)
+                        && ((resource.data.isApproved == true
+                              && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['year', 'branch']))
+                            || (resource.data.isApproved == false
+                                && exists(/databases/$(database)/documents/memberApplications/$(userId))
+                                && get(/databases/$(database)/documents/memberApplications/$(userId)).data.applicationStatus
+                                    in ['INCOMPLETE', 'NEEDS_CORRECTION'])));
+
+      allow delete: if false;
+    }
+
+    // Contact details are kept outside the public member directory document.
+    // Heads may read only contacts belonging to their own committee.
+    match /userContacts/{userId} {
+      allow get: if isSignedIn() && (myUid() == userId || isCoordinator()
+                    || (isHead() && resource.data.committee == userData(myUid()).committee));
+      allow list: if isCoordinator()
+                    || (isHead() && resource.data.committee == userData(myUid()).committee);
+      allow create: if isSignedIn() && myUid() == userId
+                    && userExists(userId)
+                    && request.resource.data.keys().hasAll(['email', 'phone', 'committee'])
+                    && request.resource.data.keys().hasOnly(['email', 'phone', 'committee'])
+                    && validContactEmail(request.resource.data.email)
+                    && validContactPhone(request.resource.data.phone)
+                    && validCommittee(request.resource.data.committee)
+                    && request.resource.data.committee == userData(userId).committee;
+      allow update: if (isCoordinator()
+                       && request.resource.data.committee is string
+                       && validCommittee(request.resource.data.committee)
+                       && request.resource.data.committee
+                           == getAfter(/databases/$(database)/documents/users/$(userId)).data.committee
+                       && request.resource.data.diff(resource.data).affectedKeys()
+                            .hasOnly(['committee']))
+                    || (isSignedIn() && myUid() == userId
+                        && request.resource.data.committee == resource.data.committee
+                        && request.resource.data.diff(resource.data).affectedKeys()
+                             .hasOnly(['email', 'phone'])
+                         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['email'])
+                             || validContactEmail(request.resource.data.email))
+                         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['phone'])
+                             || validContactPhone(request.resource.data.phone)));
+      allow delete: if false;
+    }
+
+    // Device push tokens are private to the signed-in owner. Admin SDK functions
+    // can read them for delivery without exposing them to other app users.
+    match /userDevices/{userId} {
+      allow read: if isSignedIn() && myUid() == userId;
+      allow create: if isSignedIn() && myUid() == userId
+                    && request.resource.data.keys().hasOnly(['fcmTokens'])
+                    && validFcmTokens(request.resource.data.fcmTokens);
+      allow update: if isSignedIn() && myUid() == userId
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                        .hasOnly(['fcmTokens'])
+                    && validFcmTokens(request.resource.data.fcmTokens);
+      allow delete: if isSignedIn() && myUid() == userId;
+    }
+
+    // Private application fields never enter the member directory profile.
+    match /memberApplications/{userId} {
+      allow get: if isSignedIn() && (myUid() == userId || isCoordinator());
+      allow list: if isCoordinator();
+
+      allow create: if validMemberApplication(request.resource.data)
+                    && request.resource.data.createdAt == request.time
+                    && request.resource.data.updatedAt == request.time
+                    && ((isSignedIn()
+                         && myUid() == userId
+                         && request.resource.data.applicationStatus == 'INCOMPLETE'
+                         && request.resource.data.profileCompleted == false
+                         && request.resource.data.memberId == ''
+                         && request.resource.data.submittedAt == null
+                         && request.resource.data.feedback == ''
+                         && request.resource.data.activeStep == 1
+                         && existsAfter(/databases/$(database)/documents/users/$(userId))
+                         && getAfter(/databases/$(database)/documents/users/$(userId)).data.uid == userId
+                         && getAfter(/databases/$(database)/documents/users/$(userId)).data.isApproved == false
+                         && getAfter(/databases/$(database)/documents/users/$(userId)).data.role == 'PENDING'
+                         && getAfter(/databases/$(database)/documents/users/$(userId)).data.committee == 'NONE')
+                        || (isCoordinator()
+                            && userExists(userId)
+                            && userData(userId).isApproved == false
+                            && request.resource.data.applicationStatus in ['REJECTED', 'NEEDS_CORRECTION']
+                            && request.resource.data.memberId == ''
+                            && request.resource.data.profileCompleted
+                                == (request.resource.data.applicationStatus == 'REJECTED'))
+                        || (isCoordinator()
+                            && existsAfter(/databases/$(database)/documents/users/$(userId))
+                            && getAfter(/databases/$(database)/documents/users/$(userId)).data.isApproved == true
+                            && request.resource.data.applicationStatus == 'APPROVED'
+                            && request.resource.data.profileCompleted == true
+                            && validMemberId(request.resource.data.memberId)
+                            && existsAfter(/databases/$(database)/documents/memberIdIndex/$(request.resource.data.memberId))
+                            && getAfter(/databases/$(database)/documents/memberIdIndex/$(request.resource.data.memberId)).data.uid == userId)
+                        || (isApprovedUser()
+                            && myUid() == userId
+                            && userData(userId).isApproved == true
+                            && request.resource.data.applicationStatus == 'APPROVED'
+                            && request.resource.data.profileCompleted == true
+                            && request.resource.data.memberId != ''
+                            && validMemberId(request.resource.data.memberId)
+                            && request.resource.data.feedback == ''
+                            && request.resource.data.createdAt == request.time
+                            && request.resource.data.submittedAt == null
+                            && existsAfter(/databases/$(database)/documents/memberIdIndex/$(request.resource.data.memberId))
+                            && getAfter(/databases/$(database)/documents/memberIdIndex/$(request.resource.data.memberId)).data.uid == userId));
+
+      allow update: if validMemberApplication(request.resource.data)
+                    && ((isSignedIn()
+                         && myUid() == userId
+                         && resource.data.memberId == ''
+                         && request.resource.data.memberId == ''
+                         && ((resource.data.applicationStatus in ['INCOMPLETE', 'NEEDS_CORRECTION']
+                              && request.resource.data.applicationStatus == resource.data.applicationStatus
+                              && request.resource.data.profileCompleted == false
+                              && request.resource.data.diff(resource.data).affectedKeys()
+                                  .hasOnly(['enrollmentNumber', 'section', 'preferredCommittee', 'activeStep', 'updatedAt'])
+                              && request.resource.data.updatedAt == request.time)
+                             || (resource.data.applicationStatus in ['INCOMPLETE', 'NEEDS_CORRECTION']
+                                 && request.resource.data.applicationStatus == 'PENDING'
+                                 && request.resource.data.profileCompleted == true
+                                 && request.resource.data.activeStep == 5
+                                 && request.resource.data.submittedAt == request.time
+                                 && request.resource.data.updatedAt == request.time
+                                 && request.resource.data.feedback == ''
+                                 && request.resource.data.diff(resource.data).affectedKeys()
+                                     .hasOnly(['applicationStatus', 'profileCompleted', 'feedback', 'activeStep', 'submittedAt', 'updatedAt'])
+                                 && validCompletedProfile(userId))
+                             || (resource.data.applicationStatus == 'REJECTED'
+                                 && request.resource.data.applicationStatus == 'INCOMPLETE'
+                                 && request.resource.data.profileCompleted == false
+                                 && request.resource.data.feedback == ''
+                                 && request.resource.data.activeStep == 1
+                                 && request.resource.data.submittedAt == null
+                                 && request.resource.data.updatedAt == request.time
+                                 && request.resource.data.diff(resource.data).affectedKeys()
+                                      .hasOnly(['applicationStatus', 'profileCompleted', 'feedback', 'activeStep', 'submittedAt', 'updatedAt']))))
+                        || (isCoordinator()
+                            && ((resource.data.applicationStatus == 'PENDING'
+                                 && request.resource.data.applicationStatus == 'APPROVED'
+                                 && request.resource.data.profileCompleted == true
+                                 && request.resource.data.feedback == ''
+                                 && validMemberId(request.resource.data.memberId)
+                                 && request.resource.data.updatedAt == request.time
+                                 && request.resource.data.diff(resource.data).affectedKeys()
+                                     .hasOnly(['applicationStatus', 'profileCompleted', 'feedback', 'memberId', 'updatedAt'])
+                                 && getAfter(/databases/$(database)/documents/users/$(userId)).data.isApproved == true
+                                 && existsAfter(/databases/$(database)/documents/memberIdIndex/$(request.resource.data.memberId))
+                                 && getAfter(/databases/$(database)/documents/memberIdIndex/$(request.resource.data.memberId)).data.uid == userId)
+                                || (resource.data.applicationStatus in ['PENDING', 'NEEDS_CORRECTION']
+                                    && request.resource.data.applicationStatus == 'REJECTED'
+                                    && request.resource.data.profileCompleted == true
+                                    && request.resource.data.memberId == ''
+                                    && request.resource.data.feedback.size() <= 500
+                                    && request.resource.data.updatedAt == request.time
+                                    && request.resource.data.diff(resource.data).affectedKeys()
+                                        .hasOnly(['applicationStatus', 'profileCompleted', 'feedback', 'memberId', 'updatedAt'])
+                                    && getAfter(/databases/$(database)/documents/users/$(userId)).data.isApproved == false)
+                                || (resource.data.applicationStatus == 'PENDING'
+                                    && request.resource.data.applicationStatus == 'NEEDS_CORRECTION'
+                                    && request.resource.data.profileCompleted == false
+                                    && request.resource.data.feedback.size() > 0
+                                    && request.resource.data.updatedAt == request.time
+                                    && request.resource.data.diff(resource.data).affectedKeys()
+                                        .hasOnly(['applicationStatus', 'profileCompleted', 'feedback', 'updatedAt'])
+                                    && getAfter(/databases/$(database)/documents/users/$(userId)).data.isApproved == false)
+                                || (resource.data.applicationStatus == 'APPROVED'
+                                    && resource.data.memberId == ''
+                                    && request.resource.data.applicationStatus == 'APPROVED'
+                                    && request.resource.data.profileCompleted == true
+                                    && validMemberId(request.resource.data.memberId)
+                                    && request.resource.data.updatedAt == request.time
+                                    && request.resource.data.diff(resource.data).affectedKeys()
+                                        .hasOnly(['memberId', 'updatedAt'])
+                                    && getAfter(/databases/$(database)/documents/users/$(userId)).data.isApproved == true
+                                    && existsAfter(/databases/$(database)/documents/memberIdIndex/$(request.resource.data.memberId))
+                                    && getAfter(/databases/$(database)/documents/memberIdIndex/$(request.resource.data.memberId)).data.uid == userId)))
+                        || (isSignedIn()
+                            && myUid() == userId
+                            && resource.data.applicationStatus == 'APPROVED'
+                            && resource.data.memberId == ''
+                            && request.resource.data.applicationStatus == 'APPROVED'
+                            && request.resource.data.profileCompleted == true
+                            && validMemberId(request.resource.data.memberId)
+                            && request.resource.data.updatedAt == request.time
+                            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberId', 'updatedAt'])
+                            && userData(userId).isApproved == true
+                            && existsAfter(/databases/$(database)/documents/memberIdIndex/$(request.resource.data.memberId))
+                            && getAfter(/databases/$(database)/documents/memberIdIndex/$(request.resource.data.memberId)).data.uid == userId));
+
+      allow delete: if false;
+    }
+
+    // The opaque index is readable only by coordinators for ID verification.
+    match /memberIdIndex/{memberId} {
+      allow get: if isCoordinator()
+                 || (isApprovedUser()
+                     && (!exists(/databases/$(database)/documents/memberIdIndex/$(memberId))
+                         || resource.data.uid == myUid()));
+      allow list: if false;
+      allow create: if (isCoordinator()
+                    && validMemberId(memberId)
+                    && request.resource.data.keys().hasAll(['uid', 'createdAt'])
+                    && request.resource.data.keys().hasOnly(['uid', 'createdAt'])
+                    && request.resource.data.uid is string
+                    && request.resource.data.createdAt == request.time
+                    && existsAfter(/databases/$(database)/documents/users/$(request.resource.data.uid))
+                    && getAfter(/databases/$(database)/documents/users/$(request.resource.data.uid)).data.isApproved == true
+                    && existsAfter(/databases/$(database)/documents/memberApplications/$(request.resource.data.uid))
+                    && getAfter(/databases/$(database)/documents/memberApplications/$(request.resource.data.uid)).data.memberId == memberId)
+                    || (isApprovedUser()
+                        && request.resource.data.uid == myUid()
+                        && validMemberId(memberId)
+                        && request.resource.data.keys().hasAll(['uid', 'createdAt'])
+                        && request.resource.data.keys().hasOnly(['uid', 'createdAt'])
+                        && request.resource.data.createdAt == request.time
+                        && userData(myUid()).isApproved == true
+                        && existsAfter(/databases/$(database)/documents/memberApplications/$(myUid()))
+                        && getAfter(/databases/$(database)/documents/memberApplications/$(myUid())).data.memberId == memberId);
+      allow update, delete: if false;
+    }
+
+    // Immutable coordinator-side application history for security-sensitive actions.
+    match /memberApplicationAudit/{userId}/events/{eventId} {
+      allow get, list: if isCoordinator();
+      allow create: if isCoordinator()
+                    && request.resource.data.keys().hasAll([
+                      'uid', 'actorUid', 'action', 'message', 'committee', 'role', 'memberId', 'at'
+                    ])
+                    && request.resource.data.keys().hasOnly([
+                      'uid', 'actorUid', 'action', 'message', 'committee', 'role', 'memberId', 'at'
+                    ])
+                    && request.resource.data.uid == userId
+                    && request.resource.data.actorUid == myUid()
+                    && request.resource.data.action in [
+                      'APPROVED', 'REJECTED', 'CORRECTION_REQUESTED', 'ASSIGNMENT_UPDATED', 'ID_ISSUED'
+                    ]
+                    && request.resource.data.message is string
+                    && request.resource.data.message.size() <= 500
+                    && request.resource.data.committee is string
+                    && request.resource.data.role is string
+                    && request.resource.data.memberId is string
+                    && request.resource.data.at == request.time;
+      allow update, delete: if false;
+    }
+
+    // polls/{pollId} — private ballots are separated from per-user receipts.
+    // Ballot documents contain a choice but never the voter's UID. Receipts
+    // contain only a voted flag and are readable only by their owner.
+    match /polls/{pollId} {
+      allow get, list: if canViewPollData(resource.data);
+
+      allow create: if isApprovedUser()
+                    && request.resource.data.keys().hasOnly([
+                      'title', 'question', 'options', 'audienceCommittee',
+                      'createdByUid', 'createdByName', 'isOpen', 'createdAt'
+                    ])
+                    && request.resource.data.title is string
+                    && request.resource.data.title.size() > 0
+                    && request.resource.data.title.size() <= 120
+                    && request.resource.data.question is string
+                    && request.resource.data.question.size() > 0
+                    && request.resource.data.question.size() <= 500
+                    && validPollOptions(request.resource.data.options)
+                    && request.resource.data.createdByUid == myUid()
+                    && request.resource.data.createdByName == userData(myUid()).name
+                    && request.resource.data.isOpen == true
+                    && request.resource.data.createdAt == request.time
+                    && ((isCoordinator()
+                         && (request.resource.data.audienceCommittee == 'ALL'
+                             || request.resource.data.audienceCommittee in [
+                               'EVENTS', 'CORPORATE', 'MARKETING', 'DESIGN',
+                               'SOCIAL_MEDIA', 'STARTUP', 'WEB_TECH', 'STRATEGY'
+                             ]))
+                        || isHeadOfCommittee(request.resource.data.audienceCommittee));
+
+      // Polls can only be closed by the coordinator or their committee head.
+      // Closing is one-way and is the event that reveals anonymized results.
+      allow update: if canManagePollData(resource.data)
+                    && resource.data.isOpen == true
+                    && request.resource.data.isOpen == false
+                    && request.resource.data.closedAt == request.time
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                        .hasOnly(['isOpen', 'closedAt']);
+
+      allow delete: if false;
+
+      match /voterReceipts/{userId} {
+        allow get: if isSignedIn() && myUid() == userId;
+        allow list: if false;
+        allow create: if isApprovedUser()
+                      && myUid() == userId
+                      && canViewPollData(get(/databases/$(database)/documents/polls/$(pollId)).data)
+                      && get(/databases/$(database)/documents/polls/$(pollId)).data.isOpen == true
+                      && request.resource.data.keys().hasOnly(['voted', 'ballotId'])
+                      && request.resource.data.voted == true
+                      && request.resource.data.ballotId is string
+                      && request.resource.data.ballotId.size() > 0
+                      && !exists(/databases/$(database)/documents/polls/$(pollId)/ballots/$(request.resource.data.ballotId))
+                      && existsAfter(/databases/$(database)/documents/polls/$(pollId)/ballots/$(request.resource.data.ballotId))
+                      && getAfter(/databases/$(database)/documents/polls/$(pollId)/ballots/$(request.resource.data.ballotId)).data.castAt == request.time;
+        allow update, delete: if false;
+      }
+
+      match /ballots/{ballotId} {
+        // The choice is hidden while the poll is open, including from its creator.
+        // Once closed, members see anonymous choices for tallying only.
+        allow get, list: if canViewPollData(get(/databases/$(database)/documents/polls/$(pollId)).data)
+                         && get(/databases/$(database)/documents/polls/$(pollId)).data.isOpen == false;
+
+        // One immutable owner-only receipt names exactly one random ballot.
+        // The two rules cross-check each other's after-state, preventing
+        // multi-ballot batches, orphan receipts, and retry races.
+        allow create: if isApprovedUser()
+                      && canViewPollData(get(/databases/$(database)/documents/polls/$(pollId)).data)
+                      && get(/databases/$(database)/documents/polls/$(pollId)).data.isOpen == true
+                      && request.resource.data.keys().hasOnly(['optionIndex', 'castAt'])
+                      && request.resource.data.optionIndex is int
+                      && request.resource.data.optionIndex >= 0
+                      && request.resource.data.optionIndex < get(/databases/$(database)/documents/polls/$(pollId)).data.options.size()
+                      && request.resource.data.castAt == request.time
+                      && !exists(/databases/$(database)/documents/polls/$(pollId)/voterReceipts/$(myUid()))
+                      && existsAfter(/databases/$(database)/documents/polls/$(pollId)/voterReceipts/$(myUid()))
+                      && getAfter(/databases/$(database)/documents/polls/$(pollId)/voterReceipts/$(myUid())).data.voted == true
+                      && getAfter(/databases/$(database)/documents/polls/$(pollId)/voterReceipts/$(myUid())).data.ballotId == ballotId;
+        allow update, delete: if false;
+      }
+    }
+
+    // Direct text conversations. Only the two approved participants can read
+    // a thread; messages are append-only and limited to plain text.
+    match /conversations/{conversationId} {
+      // A missing thread is not readable either; clients find an existing
+      // thread through the participant-filtered list query before creating it.
+      allow get: if isApprovedUser() && myUid() in resource.data.participants;
+      allow list: if isApprovedUser() && myUid() in resource.data.participants;
+
+      allow create: if isApprovedUser()
+                    && request.resource.data.keys().hasOnly([
+                      'participants', 'createdByUid', 'createdAt', 'lastMessage',
+                      'lastSenderUid', 'lastMessageId', 'updatedAt'
+                    ])
+                    && request.resource.data.participants is list
+                    && request.resource.data.participants.size() == 2
+                    && request.resource.data.participants[0] < request.resource.data.participants[1]
+                    && conversationId == request.resource.data.participants[0]
+                        + '_' + request.resource.data.participants[1]
+                    && myUid() in request.resource.data.participants
+                    && isApprovedUid(request.resource.data.participants[0])
+                    && isApprovedUid(request.resource.data.participants[1])
+                    && request.resource.data.createdByUid == myUid()
+                    && request.resource.data.createdAt == request.time
+                    && request.resource.data.updatedAt == request.time
+                    && request.resource.data.lastMessage == ''
+                    && request.resource.data.lastSenderUid == ''
+                    && request.resource.data.lastMessageId == '';
+
+      allow update: if isApprovedUser()
+                    && myUid() in resource.data.participants
+                    && request.resource.data.participants == resource.data.participants
+                    && request.resource.data.createdByUid == resource.data.createdByUid
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                        .hasOnly(['lastMessage', 'lastSenderUid', 'lastMessageId', 'updatedAt'])
+                    && request.resource.data.lastSenderUid == myUid()
+                    && request.resource.data.lastMessage is string
+                    && request.resource.data.lastMessage.size() > 0
+                    && request.resource.data.lastMessage.size() <= 4000
+                    && request.resource.data.updatedAt == request.time
+                    && existsAfter(/databases/$(database)/documents/conversations/$(conversationId)/messages/$(request.resource.data.lastMessageId))
+                    && getAfter(/databases/$(database)/documents/conversations/$(conversationId)/messages/$(request.resource.data.lastMessageId)).data.senderUid == myUid()
+                    && getAfter(/databases/$(database)/documents/conversations/$(conversationId)/messages/$(request.resource.data.lastMessageId)).data.text == request.resource.data.lastMessage;
+
+      allow delete: if false;
+
+      match /messages/{messageId} {
+        function isConversationParticipant() {
+          return isApprovedUser()
+                 && myUid() in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants;
+        }
+
+        allow get, list: if isConversationParticipant();
+        allow create: if isConversationParticipant()
+                      && request.resource.data.keys().hasOnly(['senderUid', 'text', 'sentAt'])
+                      && request.resource.data.senderUid == myUid()
+                      && request.resource.data.text is string
+                      && request.resource.data.text.size() > 0
+                      && request.resource.data.text.size() <= 4000
+                      && request.resource.data.sentAt == request.time;
+        allow update, delete: if false;
+      }
+    }
+
+    // announcements/{id}
+    match /announcements/{id} {
+      allow read: if canViewCommitteeContent(resource.data);
+
+      allow create: if validAnnouncement(request.resource.data)
+                    && request.resource.data.authorUid == myUid()
+                    && request.resource.data.authorName == userData(myUid()).name
+                    && (isCoordinator()
+                        || isHeadOfCommittee(request.resource.data.committee));
+
+      allow update: if validAnnouncement(request.resource.data)
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                        .hasOnly(['title', 'body', 'committee', 'isPinned', 'attachmentUrl'])
+                    && request.resource.data.authorUid == resource.data.authorUid
+                    && request.resource.data.authorName == resource.data.authorName
+                    && request.resource.data.createdAt == resource.data.createdAt
+                    && (isCoordinator()
+                        || (isHead() && resource.data.authorUid == myUid()
+                            && isHeadOfCommittee(resource.data.committee)
+                            && request.resource.data.committee == resource.data.committee));
+
+      allow delete: if isCoordinator()
+                    || (isHead() && resource.data.authorUid == myUid()
+                        && isHeadOfCommittee(resource.data.committee));
+    }
+
+    // events/{id} — the timetable/schedule (meetings, deadlines, sessions).
+    match /events/{id} {
+      allow read: if canViewCommitteeContent(resource.data);
+
+      allow create: if validEvent(request.resource.data)
+                    && request.resource.data.createdByUid == myUid()
+                    && request.resource.data.createdByName == userData(myUid()).name
+                    && (isCoordinator()
+                        || isHeadOfCommittee(request.resource.data.committee));
+
+      allow update: if validEvent(request.resource.data)
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                        .hasOnly(['title', 'description', 'startTime', 'location', 'isVirtual', 'meetingLink', 'committee'])
+                    && request.resource.data.createdByUid == resource.data.createdByUid
+                    && request.resource.data.createdByName == resource.data.createdByName
+                    && request.resource.data.createdAt == resource.data.createdAt
+                    && (isCoordinator()
+                        || (isHead() && resource.data.createdByUid == myUid()
+                            && isHeadOfCommittee(resource.data.committee)
+                            && request.resource.data.committee == resource.data.committee));
+
+      allow delete: if isCoordinator()
+                    || (isHead() && resource.data.createdByUid == myUid()
+                        && isHeadOfCommittee(resource.data.committee));
+    }
+
+    // complaints/{id} — identity is only exposed to the coordinator and to the
+    // member who filed it; nobody else can list or read other members' complaints.
+    match /complaints/{id} {
+      allow create: if isApprovedUser()
+                    && request.resource.data.keys().hasAll([
+                      'title', 'body', 'filerUid', 'filerName', 'filerCommittee',
+                      'status', 'response', 'createdAt'
+                    ])
+                    && request.resource.data.keys().hasOnly([
+                      'title', 'body', 'filerUid', 'filerName', 'filerCommittee',
+                      'status', 'response', 'createdAt'
+                    ])
+                    && request.resource.data.title is string
+                    && request.resource.data.title.size() > 0
+                    && request.resource.data.title.size() <= 120
+                    && request.resource.data.body is string
+                    && request.resource.data.body.size() >= 20
+                    && request.resource.data.body.size() <= 5000
+                    && request.resource.data.filerUid == myUid()
+                    && request.resource.data.filerName == userData(myUid()).name
+                    && request.resource.data.filerCommittee == userData(myUid()).committee
+                    && request.resource.data.status == 'OPEN'
+                    && request.resource.data.response == ''
+                    && request.resource.data.createdAt == request.time;
+
+      allow read: if isCoordinator()
+                    || (isSignedIn() && resource.data.filerUid == myUid());
+
+      // Only status and response may change after a complaint is filed.
+      allow update: if isCoordinator()
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                        .hasOnly(['status', 'response'])
+                    && request.resource.data.status in ['OPEN', 'IN_REVIEW', 'RESOLVED']
+                    && request.resource.data.response is string
+                    && request.resource.data.response.size() <= 5000;
+
+      allow delete: if isCoordinator();
+    }
+  }
+}

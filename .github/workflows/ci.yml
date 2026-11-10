@@ -1,0 +1,80 @@
+name: Android and Firebase checks
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Add nonproduction Firebase build configuration
+        run: |
+          cat > app/google-services.json <<'JSON'
+          {
+            "project_info": {
+              "project_number": "000000000000",
+              "project_id": "ecell-ci",
+              "storage_bucket": "ecell-ci.appspot.com"
+            },
+            "client": [
+              {
+                "client_info": {
+                  "mobilesdk_app_id": "1:000000000000:android:0000000000000000000000",
+                  "android_client_info": { "package_name": "dcrustm.ecell.mobile" }
+                },
+                "oauth_client": [
+                  { "client_id": "000000000000-ci.apps.googleusercontent.com", "client_type": 3 }
+                ],
+                "api_key": [
+                  { "current_key": "ci-placeholder-not-a-real-api-key" }
+                ],
+                "services": {
+                  "appinvite_service": {
+                    "other_platform_oauth_client": [
+                      { "client_id": "000000000000-ci.apps.googleusercontent.com", "client_type": 3 }
+                    ]
+                  }
+                }
+              }
+            ],
+            "configuration_version": "1"
+          }
+          JSON
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Build Android variants, run unit tests and lint
+        run: |
+          chmod +x gradlew
+          ./gradlew testDebugUnitTest assembleDebug assembleRelease lintDebug
+
+      - name: Build and test Firebase Functions
+        run: |
+          npm ci --prefix functions
+          npm test --prefix functions
+          npm audit --prefix functions --audit-level=high
+
+      - name: Test Firestore security rules in the emulator
+        run: |
+          npm ci --prefix firestore-tests
+          npm test --prefix firestore-tests
+          npm audit --prefix firestore-tests --audit-level=high

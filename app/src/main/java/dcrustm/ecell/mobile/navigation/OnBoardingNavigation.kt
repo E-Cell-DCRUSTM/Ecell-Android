@@ -76,7 +76,13 @@ fun OnBoardingNavigation(
         }
 
         composable<OnBoardingRoutes.RootAppRoute> {
-            RootApp()
+            RootApp(
+                onSignedOut = {
+                    navController.navigate(OnBoardingRoutes.WelcomeAppRoute) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
+            )
         }
     }
 }

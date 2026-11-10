@@ -7,12 +7,8 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dcrustm.ecell.mobile.domain.auth.AuthError
 import dcrustm.ecell.mobile.domain.auth.AuthSuccess
-import dcrustm.ecell.mobile.domain.model.User
-import dcrustm.ecell.mobile.domain.usecase.auth.EmailLoginUseCase
-import dcrustm.ecell.mobile.domain.usecase.auth.EmailSignUpUseCase
-import dcrustm.ecell.mobile.domain.usecase.auth.GetGoogleIdUseCase
+import dcrustm.ecell.mobile.domain.auth.FirebaseAuthRepository
 import dcrustm.ecell.mobile.domain.usecase.auth.GoogleLoginUseCase
-import dcrustm.ecell.mobile.domain.usecase.auth.GoogleSignUpUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -20,86 +16,37 @@ import javax.inject.Inject
 
 @HiltViewModel
 class AuthViewModel @Inject constructor(
-    private val getGoogleIdUseCase: GetGoogleIdUseCase,
-    private val emailSignUpUseCase: EmailSignUpUseCase,
-    private val emailLoginUseCase: EmailLoginUseCase,
-    private val googleSignUpUseCase: GoogleSignUpUseCase,
-    private val googleLoginUseCase: GoogleLoginUseCase
+    private val googleLoginUseCase: GoogleLoginUseCase,
+    private val firebaseAuthRepository: FirebaseAuthRepository
 ) : ViewModel() {
-
-    private var _isLoginSuccessful = MutableStateFlow(false)
-    val isLoginSuccessful: StateFlow<Boolean> = _isLoginSuccessful
 
     private val _authState = MutableStateFlow<AuthState>(AuthState.Initial)
     val authState: StateFlow<AuthState> = _authState
 
-    // Function to signup with google all in one and return the access token.
-    fun signUpWithGoogle(credentialManager: CredentialManager, context: Activity) = viewModelScope.launch {
+    fun continueWithGoogle(credentialManager: CredentialManager, context: Activity) = viewModelScope.launch {
+        if (_authState.value == AuthState.Loading) return@launch
         _authState.value = AuthState.Loading
-        val result = googleSignUpUseCase(credentialManager, context)
-        when(result) {
-            is AuthSuccess -> {
-                _authState.value = AuthState.Authenticated(result)
-                _isLoginSuccessful.value = true
-            }
-            is AuthError -> {
-                _authState.value = AuthState.Error(result.errorMessage)
-                _isLoginSuccessful.value = false
-            }
+        val result = runCatching { googleLoginUseCase(credentialManager, context) }
+            .getOrElse { AuthError(it.message ?: "Google sign-in failed. Please try again.") }
+        when (result) {
+            is AuthSuccess -> _authState.value = AuthState.Authenticated(result)
+            is AuthError -> _authState.value = AuthState.Error(result.errorMessage)
         }
     }
 
-    // Function to login with google all in one and return the access token.
-    fun loginWithGoogle(credentialManager: CredentialManager, context: Activity) = viewModelScope.launch {
-        _authState.value = AuthState.Loading
-        val result = googleLoginUseCase(credentialManager, context)
-        when(result) {
-            is AuthSuccess -> {
-                _authState.value = AuthState.Authenticated(result)
-                _isLoginSuccessful.value = true
-            }
-            is AuthError -> {
-                _authState.value = AuthState.Error(result.errorMessage)
-                _isLoginSuccessful.value = false
-            }
+    fun signInWithEmail(email: String, pass: String) = viewModelScope.launch {
+        if (email.isBlank() || pass.isBlank()) {
+            _authState.value = AuthState.Error("Please enter both email and password")
+            return@launch
         }
-    }
-
-    // Function to signup with email all in one and return the access token.
-    fun signUpWithEmail(user: User) = viewModelScope.launch {
+        if (_authState.value == AuthState.Loading) return@launch
         _authState.value = AuthState.Loading
-        val result = emailSignUpUseCase(user)
-        when(result) {
-            is AuthSuccess -> {
-                _authState.value = AuthState.Authenticated(result)
-                _isLoginSuccessful.value = true
-            }
-            is AuthError -> {
-                _authState.value = AuthState.Error(result.errorMessage)
-                _isLoginSuccessful.value = false
-            }
+        val result = runCatching { firebaseAuthRepository.signInWithEmail(email, pass) }
+            .getOrElse { AuthError(it.message ?: "Sign-in failed") }
+        when (result) {
+            is AuthSuccess -> _authState.value = AuthState.Authenticated(result)
+            is AuthError -> _authState.value = AuthState.Error(result.errorMessage)
         }
-    }
-
-    // Function to login with Email Id all in one and return the access token.
-    fun loginWithEmail(email: String, password: String) = viewModelScope.launch {
-        _authState.value = AuthState.Loading
-        val result = emailLoginUseCase(email, password)
-        when(result) {
-            is AuthSuccess -> {
-                _authState.value = AuthState.Authenticated(result)
-                _isLoginSuccessful.value = true
-            }
-            is AuthError -> {
-                _authState.value = AuthState.Error(result.errorMessage)
-                _isLoginSuccessful.value = false
-            }
-        }
-    }
-
-    // Function to fetch google details, left for debugging.
-    fun getGoogleIdDetails(credentialManager: CredentialManager, context: Activity) = viewModelScope.launch{
-        getGoogleIdUseCase(credentialManager = credentialManager,context = context)
     }
 
 }

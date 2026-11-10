@@ -1,0 +1,121 @@
+name: Protected Android release signing
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  signed-release:
+    runs-on: ubuntu-latest
+    environment: android-release
+    steps:
+      - name: Check out published release tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Add nonproduction Firebase build configuration
+        run: |
+          cat > app/google-services.json <<'JSON'
+          {
+            "project_info": {
+              "project_number": "000000000000",
+              "project_id": "ecell-ci",
+              "storage_bucket": "ecell-ci.appspot.com"
+            },
+            "client": [
+              {
+                "client_info": {
+                  "mobilesdk_app_id": "1:000000000000:android:0000000000000000000000",
+                  "android_client_info": { "package_name": "dcrustm.ecell.mobile" }
+                },
+                "oauth_client": [
+                  { "client_id": "000000000000-ci.apps.googleusercontent.com", "client_type": 3 }
+                ],
+                "api_key": [
+                  { "current_key": "ci-placeholder-not-a-real-api-key" }
+                ],
+                "services": {
+                  "appinvite_service": {
+                    "other_platform_oauth_client": [
+                      { "client_id": "000000000000-ci.apps.googleusercontent.com", "client_type": 3 }
+                    ]
+                  }
+                }
+              }
+            ],
+            "configuration_version": "1"
+          }
+          JSON
+
+      - name: Prepare existing protected signing key
+        id: signing
+        shell: bash
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [[ -z "$KEYSTORE_BASE64" || -z "$KEYSTORE_PASSWORD" || -z "$KEY_ALIAS" || -z "$KEY_PASSWORD" ]]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No protected Android signing secrets are configured; no signed release artifact was produced. The standard CI release build is unsigned."
+            exit 0
+          fi
+          key_path="$(mktemp "$RUNNER_TEMP/ecell-release-XXXXXX.jks")"
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$key_path"
+          chmod 600 "$key_path"
+          echo "configured=true" >> "$GITHUB_OUTPUT"
+          echo "keystore_path=$key_path" >> "$GITHUB_OUTPUT"
+
+      - name: Build signed Android App Bundle
+        if: steps.signing.outputs.configured == 'true'
+        shell: bash
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ steps.signing.outputs.keystore_path }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          chmod +x gradlew
+          ./gradlew bundleRelease
+
+      - name: Verify signed bundle
+        if: steps.signing.outputs.configured == 'true'
+        shell: bash
+        run: |
+          verification="$(jarsigner -verify -verbose -certs app/build/outputs/bundle/release/app-release.aab 2>&1)"
+          printf '%s\n' "$verification"
+          if ! grep -Fq "jar verified." <<< "$verification"; then
+            echo "The release App Bundle did not pass signature verification."
+            exit 1
+          fi
+
+      - name: Upload signed release bundle
+        if: steps.signing.outputs.configured == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ecell-android-${{ github.event.release.tag_name }}
+          path: app/build/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Remove runner-only keystore
+        if: always() && steps.signing.outputs.configured == 'true'
+        shell: bash
+        run: rm -f "${{ steps.signing.outputs.keystore_path }}"
