@@ -38,9 +38,26 @@ service cloud.firestore {
       return value in ['PENDING', 'MEMBER', 'COMMITTEE_HEAD', 'COORDINATOR'];
     }
 
+    function validContactEmail(value) {
+      return value is string
+             && value.size() > 0
+             && value.size() <= 254
+             && value.matches('^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$');
+    }
+
+    function validContactPhone(value) {
+      // Blank is valid because contact numbers are optional by default. A
+      // supplied value may contain common separators but must have 7–15 digits.
+      return value is string
+             && value.size() <= 32
+             && (value.size() == 0
+                 || value.matches('^[+() .-]*([0-9][+() .-]*){7,15}$'));
+    }
+
     function validCoordinatorAssignment(data, existing) {
       return (data.isApproved == true
               && data.role in ['MEMBER', 'COMMITTEE_HEAD', 'COORDINATOR']
+              && validCommittee(data.committee)
               && data.committee != 'NONE'
               && (data.role != 'COORDINATOR' || existing.role == 'COORDINATOR'))
              || (data.isApproved == false
@@ -173,6 +190,95 @@ service cloud.firestore {
              && data.isApproved is bool;
     }
 
+    function validMemberId(value) {
+      return value is string && value.matches('EC-[0-9A-F]{16}');
+    }
+
+    function validMemberApplication(data) {
+      return data.keys().hasAll([
+               'enrollmentNumber', 'section', 'preferredCommittee',
+               'profileCompleted', 'applicationStatus', 'feedback',
+               'activeStep', 'memberId', 'createdAt', 'updatedAt', 'submittedAt'
+             ])
+             && data.keys().hasOnly([
+               'enrollmentNumber', 'section', 'preferredCommittee',
+               'profileCompleted', 'applicationStatus', 'feedback',
+               'activeStep', 'memberId', 'createdAt', 'updatedAt', 'submittedAt'
+             ])
+             && data.enrollmentNumber is string && data.enrollmentNumber.size() <= 40
+             && data.section is string && data.section.size() <= 40
+             && validCommittee(data.preferredCommittee)
+             && data.profileCompleted is bool
+             && data.applicationStatus in [
+               'INCOMPLETE', 'PENDING', 'NEEDS_CORRECTION', 'REJECTED', 'APPROVED'
+             ]
+             && ((data.applicationStatus in ['INCOMPLETE', 'NEEDS_CORRECTION']
+                  && data.profileCompleted == false)
+                 || (data.applicationStatus in ['PENDING', 'REJECTED', 'APPROVED']
+                     && data.profileCompleted == true))
+             && data.feedback is string && data.feedback.size() <= 500
+             && data.activeStep is int && data.activeStep >= 1 && data.activeStep <= 5
+             && data.memberId is string && data.memberId.size() <= 24
+             && (data.memberId == '' || validMemberId(data.memberId))
+             && (data.applicationStatus == 'APPROVED'
+                 ? validMemberId(data.memberId)
+                 : data.memberId == '')
+             && data.createdAt is timestamp
+             && data.updatedAt is timestamp
+             && (data.submittedAt == null || data.submittedAt is timestamp);
+    }
+
+    function validProfilePhotoPath(value, userId) {
+      return value == '' || value == 'memberPhotos/' + userId + '/profile.jpg';
+    }
+
+    function validCompletedProfile(userId) {
+      let profile = get(/databases/$(database)/documents/users/$(userId)).data;
+      let contact = get(/databases/$(database)/documents/userContacts/$(userId)).data;
+      return completedUserProfile(profile, userId)
+             && completedUserContact(contact);
+    }
+
+    function completedUserProfile(profile, userId) {
+      return profile.uid == userId
+             && profile.isApproved == false
+             && profile.role == 'PENDING'
+             && profile.committee == 'NONE'
+             && profile.name is string
+             && profile.name.size() >= 2
+             && profile.year is int
+             && profile.year >= 1
+             && profile.year <= 4
+             && profile.branch is string
+             && profile.branch.size() > 0
+             && profile.profilePhotoUrl is string
+             && validProfilePhotoPath(profile.profilePhotoUrl, userId);
+    }
+
+    function completedUserContact(contact) {
+      return validContactEmail(contact.email)
+             && validContactPhone(contact.phone);
+    }
+
+    function validSelfProfileUpdate(newData, oldData, userId) {
+      let changed = newData.diff(oldData).affectedKeys();
+      return newData.uid == oldData.uid
+             && newData.joinedAt == oldData.joinedAt
+             && changed.hasOnly(['name', 'year', 'branch', 'bio', 'profilePhotoUrl'])
+             && (!changed.hasAny(['name'])
+                 || (newData.name is string && newData.name.size() >= 2 && newData.name.size() <= 100))
+             && (!changed.hasAny(['year'])
+                 || (newData.year is int && newData.year >= 1 && newData.year <= 4))
+             && (!changed.hasAny(['branch'])
+                 || (newData.branch is string && newData.branch.size() > 0 && newData.branch.size() <= 100))
+             && (!changed.hasAny(['bio'])
+                 || (newData.bio is string && newData.bio.size() <= 1000))
+             && (!changed.hasAny(['profilePhotoUrl'])
+                 || (newData.profilePhotoUrl is string
+                     && newData.profilePhotoUrl.size() <= 2048
+                     && validProfilePhotoPath(newData.profilePhotoUrl, userId)));
+    }
+
     function isCoordinator() {
       return isApprovedUser() && myRole() == 'COORDINATOR';
     }
@@ -230,29 +336,34 @@ service cloud.firestore {
                     && request.resource.data.uid == userId
                     && request.resource.data.role == 'PENDING'
                     && request.resource.data.committee == 'NONE'
-                    && request.resource.data.isApproved == false;
+                    && request.resource.data.isApproved == false
+                    && existsAfter(/databases/$(database)/documents/memberApplications/$(userId))
+                    && getAfter(/databases/$(database)/documents/memberApplications/$(userId)).data.applicationStatus == 'INCOMPLETE'
+                    && getAfter(/databases/$(database)/documents/memberApplications/$(userId)).data.profileCompleted == false;
 
       // Coordinator can edit any profile (approvals, role/committee changes).
       // A member can edit their own profile but not elevate themselves.
       allow update: if (isCoordinator()
                        && myUid() != userId
-                       && validMemberProfile(request.resource.data)
                        && request.resource.data.uid == userId
                        && request.resource.data.joinedAt == resource.data.joinedAt
                        && validCoordinatorAssignment(request.resource.data, resource.data)
+                       && (resource.data.isApproved == true
+                           || (existsAfter(/databases/$(database)/documents/memberApplications/$(userId))
+                               && getAfter(/databases/$(database)/documents/memberApplications/$(userId)).data.applicationStatus == 'APPROVED'
+                                && validMemberId(getAfter(/databases/$(database)/documents/memberApplications/$(userId)).data.memberId)))
                        && request.resource.data.diff(resource.data).affectedKeys()
                            .hasOnly(['role', 'committee', 'isApproved']))
                     || (isSignedIn() && myUid() == userId
-                        && validMemberProfile(request.resource.data)
-                        && request.resource.data.uid == resource.data.uid
-                        && request.resource.data.joinedAt == resource.data.joinedAt
-                        && request.resource.data.diff(resource.data).affectedKeys()
-                            .hasOnly(['name', 'year', 'branch', 'bio', 'profilePhotoUrl']));
+                         && validSelfProfileUpdate(request.resource.data, resource.data, userId)
+                        && ((resource.data.isApproved == true
+                              && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['year', 'branch']))
+                            || (resource.data.isApproved == false
+                                && exists(/databases/$(database)/documents/memberApplications/$(userId))
+                                && get(/databases/$(database)/documents/memberApplications/$(userId)).data.applicationStatus
+                                    in ['INCOMPLETE', 'NEEDS_CORRECTION'])));
 
-      allow delete: if isCoordinator()
-                    && myUid() != userId
-                    && resource.data.isApproved == false
-                    && resource.data.role == 'PENDING';
+      allow delete: if false;
     }
 
     // Contact details are kept outside the public member directory document.
@@ -266,35 +377,26 @@ service cloud.firestore {
                     && userExists(userId)
                     && request.resource.data.keys().hasAll(['email', 'phone', 'committee'])
                     && request.resource.data.keys().hasOnly(['email', 'phone', 'committee'])
-                    && request.resource.data.email is string
-                    && request.resource.data.email.size() <= 254
-                    && request.resource.data.phone is string
-                    && request.resource.data.phone.size() <= 32
+                    && validContactEmail(request.resource.data.email)
+                    && validContactPhone(request.resource.data.phone)
                     && validCommittee(request.resource.data.committee)
                     && request.resource.data.committee == userData(userId).committee;
       allow update: if (isCoordinator()
-                       && request.resource.data.keys().hasAll(['email', 'phone', 'committee'])
-                       && request.resource.data.keys().hasOnly(['email', 'phone', 'committee'])
-                       && request.resource.data.email is string
-                       && request.resource.data.email.size() <= 254
-                       && request.resource.data.phone is string
-                       && request.resource.data.phone.size() <= 32
+                       && request.resource.data.committee is string
                        && validCommittee(request.resource.data.committee)
                        && request.resource.data.committee
                            == getAfter(/databases/$(database)/documents/users/$(userId)).data.committee
                        && request.resource.data.diff(resource.data).affectedKeys()
-                           .hasOnly(['email', 'phone', 'committee']))
+                            .hasOnly(['committee']))
                     || (isSignedIn() && myUid() == userId
-                        && request.resource.data.keys().hasAll(['email', 'phone', 'committee'])
-                        && request.resource.data.keys().hasOnly(['email', 'phone', 'committee'])
-                        && request.resource.data.email is string
-                        && request.resource.data.email.size() <= 254
-                        && request.resource.data.phone is string
-                        && request.resource.data.phone.size() <= 32
                         && request.resource.data.committee == resource.data.committee
                         && request.resource.data.diff(resource.data).affectedKeys()
-                            .hasOnly(['email', 'phone']));
-      allow delete: if isCoordinator();
+                             .hasOnly(['email', 'phone'])
+                         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['email'])
+                             || validContactEmail(request.resource.data.email))
+                         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['phone'])
+                             || validContactPhone(request.resource.data.phone)));
+      allow delete: if false;
     }
 
     // Device push tokens are private to the signed-in owner. Admin SDK functions
@@ -309,6 +411,194 @@ service cloud.firestore {
                         .hasOnly(['fcmTokens'])
                     && validFcmTokens(request.resource.data.fcmTokens);
       allow delete: if isSignedIn() && myUid() == userId;
+    }
+
+    // Private application fields never enter the member directory profile.
+    match /memberApplications/{userId} {
+      allow get: if isSignedIn() && (myUid() == userId || isCoordinator());
+      allow list: if isCoordinator();
+
+      allow create: if validMemberApplication(request.resource.data)
+                    && request.resource.data.createdAt == request.time
+                    && request.resource.data.updatedAt == request.time
+                    && ((isSignedIn()
+                         && myUid() == userId
+                         && request.resource.data.applicationStatus == 'INCOMPLETE'
+                         && request.resource.data.profileCompleted == false
+                         && request.resource.data.memberId == ''
+                         && request.resource.data.submittedAt == null
+                         && request.resource.data.feedback == ''
+                         && request.resource.data.activeStep == 1
+                         && existsAfter(/databases/$(database)/documents/users/$(userId))
+                         && getAfter(/databases/$(database)/documents/users/$(userId)).data.uid == userId
+                         && getAfter(/databases/$(database)/documents/users/$(userId)).data.isApproved == false
+                         && getAfter(/databases/$(database)/documents/users/$(userId)).data.role == 'PENDING'
+                         && getAfter(/databases/$(database)/documents/users/$(userId)).data.committee == 'NONE')
+                        || (isCoordinator()
+                            && userExists(userId)
+                            && userData(userId).isApproved == false
+                            && request.resource.data.applicationStatus in ['REJECTED', 'NEEDS_CORRECTION']
+                            && request.resource.data.memberId == ''
+                            && request.resource.data.profileCompleted
+                                == (request.resource.data.applicationStatus == 'REJECTED'))
+                        || (isCoordinator()
+                            && existsAfter(/databases/$(database)/documents/users/$(userId))
+                            && getAfter(/databases/$(database)/documents/users/$(userId)).data.isApproved == true
+                            && request.resource.data.applicationStatus == 'APPROVED'
+                            && request.resource.data.profileCompleted == true
+                            && validMemberId(request.resource.data.memberId)
+                            && existsAfter(/databases/$(database)/documents/memberIdIndex/$(request.resource.data.memberId))
+                            && getAfter(/databases/$(database)/documents/memberIdIndex/$(request.resource.data.memberId)).data.uid == userId)
+                        || (isApprovedUser()
+                            && myUid() == userId
+                            && userData(userId).isApproved == true
+                            && request.resource.data.applicationStatus == 'APPROVED'
+                            && request.resource.data.profileCompleted == true
+                            && request.resource.data.memberId != ''
+                            && validMemberId(request.resource.data.memberId)
+                            && request.resource.data.feedback == ''
+                            && request.resource.data.createdAt == request.time
+                            && request.resource.data.submittedAt == null
+                            && existsAfter(/databases/$(database)/documents/memberIdIndex/$(request.resource.data.memberId))
+                            && getAfter(/databases/$(database)/documents/memberIdIndex/$(request.resource.data.memberId)).data.uid == userId));
+
+      allow update: if validMemberApplication(request.resource.data)
+                    && ((isSignedIn()
+                         && myUid() == userId
+                         && resource.data.memberId == ''
+                         && request.resource.data.memberId == ''
+                         && ((resource.data.applicationStatus in ['INCOMPLETE', 'NEEDS_CORRECTION']
+                              && request.resource.data.applicationStatus == resource.data.applicationStatus
+                              && request.resource.data.profileCompleted == false
+                              && request.resource.data.diff(resource.data).affectedKeys()
+                                  .hasOnly(['enrollmentNumber', 'section', 'preferredCommittee', 'activeStep', 'updatedAt'])
+                              && request.resource.data.updatedAt == request.time)
+                             || (resource.data.applicationStatus in ['INCOMPLETE', 'NEEDS_CORRECTION']
+                                 && request.resource.data.applicationStatus == 'PENDING'
+                                 && request.resource.data.profileCompleted == true
+                                 && request.resource.data.activeStep == 5
+                                 && request.resource.data.submittedAt == request.time
+                                 && request.resource.data.updatedAt == request.time
+                                 && request.resource.data.feedback == ''
+                                 && request.resource.data.diff(resource.data).affectedKeys()
+                                     .hasOnly(['applicationStatus', 'profileCompleted', 'feedback', 'activeStep', 'submittedAt', 'updatedAt'])
+                                 && validCompletedProfile(userId))
+                             || (resource.data.applicationStatus == 'REJECTED'
+                                 && request.resource.data.applicationStatus == 'INCOMPLETE'
+                                 && request.resource.data.profileCompleted == false
+                                 && request.resource.data.feedback == ''
+                                 && request.resource.data.activeStep == 1
+                                 && request.resource.data.submittedAt == null
+                                 && request.resource.data.updatedAt == request.time
+                                 && request.resource.data.diff(resource.data).affectedKeys()
+                                      .hasOnly(['applicationStatus', 'profileCompleted', 'feedback', 'activeStep', 'submittedAt', 'updatedAt']))))
+                        || (isCoordinator()
+                            && ((resource.data.applicationStatus == 'PENDING'
+                                 && request.resource.data.applicationStatus == 'APPROVED'
+                                 && request.resource.data.profileCompleted == true
+                                 && request.resource.data.feedback == ''
+                                 && validMemberId(request.resource.data.memberId)
+                                 && request.resource.data.updatedAt == request.time
+                                 && request.resource.data.diff(resource.data).affectedKeys()
+                                     .hasOnly(['applicationStatus', 'profileCompleted', 'feedback', 'memberId', 'updatedAt'])
+                                 && getAfter(/databases/$(database)/documents/users/$(userId)).data.isApproved == true
+                                 && existsAfter(/databases/$(database)/documents/memberIdIndex/$(request.resource.data.memberId))
+                                 && getAfter(/databases/$(database)/documents/memberIdIndex/$(request.resource.data.memberId)).data.uid == userId)
+                                || (resource.data.applicationStatus in ['PENDING', 'NEEDS_CORRECTION']
+                                    && request.resource.data.applicationStatus == 'REJECTED'
+                                    && request.resource.data.profileCompleted == true
+                                    && request.resource.data.memberId == ''
+                                    && request.resource.data.feedback.size() <= 500
+                                    && request.resource.data.updatedAt == request.time
+                                    && request.resource.data.diff(resource.data).affectedKeys()
+                                        .hasOnly(['applicationStatus', 'profileCompleted', 'feedback', 'memberId', 'updatedAt'])
+                                    && getAfter(/databases/$(database)/documents/users/$(userId)).data.isApproved == false)
+                                || (resource.data.applicationStatus == 'PENDING'
+                                    && request.resource.data.applicationStatus == 'NEEDS_CORRECTION'
+                                    && request.resource.data.profileCompleted == false
+                                    && request.resource.data.feedback.size() > 0
+                                    && request.resource.data.updatedAt == request.time
+                                    && request.resource.data.diff(resource.data).affectedKeys()
+                                        .hasOnly(['applicationStatus', 'profileCompleted', 'feedback', 'updatedAt'])
+                                    && getAfter(/databases/$(database)/documents/users/$(userId)).data.isApproved == false)
+                                || (resource.data.applicationStatus == 'APPROVED'
+                                    && resource.data.memberId == ''
+                                    && request.resource.data.applicationStatus == 'APPROVED'
+                                    && request.resource.data.profileCompleted == true
+                                    && validMemberId(request.resource.data.memberId)
+                                    && request.resource.data.updatedAt == request.time
+                                    && request.resource.data.diff(resource.data).affectedKeys()
+                                        .hasOnly(['memberId', 'updatedAt'])
+                                    && getAfter(/databases/$(database)/documents/users/$(userId)).data.isApproved == true
+                                    && existsAfter(/databases/$(database)/documents/memberIdIndex/$(request.resource.data.memberId))
+                                    && getAfter(/databases/$(database)/documents/memberIdIndex/$(request.resource.data.memberId)).data.uid == userId)))
+                        || (isSignedIn()
+                            && myUid() == userId
+                            && resource.data.applicationStatus == 'APPROVED'
+                            && resource.data.memberId == ''
+                            && request.resource.data.applicationStatus == 'APPROVED'
+                            && request.resource.data.profileCompleted == true
+                            && validMemberId(request.resource.data.memberId)
+                            && request.resource.data.updatedAt == request.time
+                            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberId', 'updatedAt'])
+                            && userData(userId).isApproved == true
+                            && existsAfter(/databases/$(database)/documents/memberIdIndex/$(request.resource.data.memberId))
+                            && getAfter(/databases/$(database)/documents/memberIdIndex/$(request.resource.data.memberId)).data.uid == userId));
+
+      allow delete: if false;
+    }
+
+    // The opaque index is readable only by coordinators for ID verification.
+    match /memberIdIndex/{memberId} {
+      allow get: if isCoordinator()
+                 || (isApprovedUser()
+                     && (!exists(/databases/$(database)/documents/memberIdIndex/$(memberId))
+                         || resource.data.uid == myUid()));
+      allow list: if false;
+      allow create: if (isCoordinator()
+                    && validMemberId(memberId)
+                    && request.resource.data.keys().hasAll(['uid', 'createdAt'])
+                    && request.resource.data.keys().hasOnly(['uid', 'createdAt'])
+                    && request.resource.data.uid is string
+                    && request.resource.data.createdAt == request.time
+                    && existsAfter(/databases/$(database)/documents/users/$(request.resource.data.uid))
+                    && getAfter(/databases/$(database)/documents/users/$(request.resource.data.uid)).data.isApproved == true
+                    && existsAfter(/databases/$(database)/documents/memberApplications/$(request.resource.data.uid))
+                    && getAfter(/databases/$(database)/documents/memberApplications/$(request.resource.data.uid)).data.memberId == memberId)
+                    || (isApprovedUser()
+                        && request.resource.data.uid == myUid()
+                        && validMemberId(memberId)
+                        && request.resource.data.keys().hasAll(['uid', 'createdAt'])
+                        && request.resource.data.keys().hasOnly(['uid', 'createdAt'])
+                        && request.resource.data.createdAt == request.time
+                        && userData(myUid()).isApproved == true
+                        && existsAfter(/databases/$(database)/documents/memberApplications/$(myUid()))
+                        && getAfter(/databases/$(database)/documents/memberApplications/$(myUid())).data.memberId == memberId);
+      allow update, delete: if false;
+    }
+
+    // Immutable coordinator-side application history for security-sensitive actions.
+    match /memberApplicationAudit/{userId}/events/{eventId} {
+      allow get, list: if isCoordinator();
+      allow create: if isCoordinator()
+                    && request.resource.data.keys().hasAll([
+                      'uid', 'actorUid', 'action', 'message', 'committee', 'role', 'memberId', 'at'
+                    ])
+                    && request.resource.data.keys().hasOnly([
+                      'uid', 'actorUid', 'action', 'message', 'committee', 'role', 'memberId', 'at'
+                    ])
+                    && request.resource.data.uid == userId
+                    && request.resource.data.actorUid == myUid()
+                    && request.resource.data.action in [
+                      'APPROVED', 'REJECTED', 'CORRECTION_REQUESTED', 'ASSIGNMENT_UPDATED', 'ID_ISSUED'
+                    ]
+                    && request.resource.data.message is string
+                    && request.resource.data.message.size() <= 500
+                    && request.resource.data.committee is string
+                    && request.resource.data.role is string
+                    && request.resource.data.memberId is string
+                    && request.resource.data.at == request.time;
+      allow update, delete: if false;
     }
 
     // polls/{pollId} — private ballots are separated from per-user receipts.

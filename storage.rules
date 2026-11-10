@@ -1,0 +1,64 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isApprovedMember() {
+      return signedIn()
+             && firestore.get(
+               /databases/(default)/documents/users/$(request.auth.uid)
+             ).data.isApproved == true;
+    }
+
+    function isApprovedTarget(userId) {
+      return firestore.exists(
+               /databases/(default)/documents/users/$(userId)
+             )
+             && firestore.get(
+               /databases/(default)/documents/users/$(userId)
+             ).data.isApproved == true;
+    }
+
+    function isCoordinator() {
+      return signedIn()
+             && firestore.get(
+               /databases/(default)/documents/users/$(request.auth.uid)
+             ).data.isApproved == true
+             && firestore.get(
+               /databases/(default)/documents/users/$(request.auth.uid)
+             ).data.role == 'COORDINATOR';
+    }
+
+    // One private, replaceable JPEG per account. A profile image is visible
+    // only to its owner and currently approved members. Enrollment and
+    // contact data are never stored in this bucket.
+    match /memberPhotos/{userId}/profile.jpg {
+      allow read: if signedIn()
+                  && (request.auth.uid == userId
+                      || (isApprovedMember() && isApprovedTarget(userId))
+                      || (isCoordinator() && firestore.exists(
+                            /databases/(default)/documents/users/$(userId)
+                         )));
+
+      allow create, update: if signedIn()
+                            && request.auth.uid == userId
+                            && firestore.exists(
+                              /databases/(default)/documents/users/$(userId)
+                            )
+                            && request.resource != null
+                            && request.resource.size <= 350 * 1024
+                            && request.resource.contentType == 'image/jpeg';
+
+      // The client replaces the same path instead of leaving orphaned images.
+      // Deletion is coordinator/admin-only and is not exposed to app clients.
+      allow delete: if false;
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

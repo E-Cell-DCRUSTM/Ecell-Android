@@ -17,18 +17,22 @@ import {
   where,
   writeBatch,
 } from "firebase/firestore";
+import { ref, uploadBytes, getBytes } from "firebase/storage";
 
 const require = createRequire(import.meta.url);
 const { runContactMigration } = require("../functions/lib/contactMigration.js");
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const rules = readFileSync(resolve(root, "firestore.rules"), "utf8");
+const storageRules = readFileSync(resolve(root, "storage.rules"), "utf8");
 const env = await initializeTestEnvironment({
-  projectId: "demo-ecell-dcrust-rules",
+  projectId: "demo-ecell-dcrust",
   firestore: { rules },
+  storage: { rules: storageRules },
 });
 
 const dbFor = (uid) => env.authenticatedContext(uid).firestore();
+const storageFor = (uid) => env.authenticatedContext(uid).storage();
 const alice = dbFor("alice");
 const bob = dbFor("bob");
 const carol = dbFor("carol");
@@ -80,6 +84,21 @@ const profile = (uid, committee, role = "MEMBER", isApproved = true) => ({
   isApproved,
 });
 
+const memberApplication = (applicationStatus, overrides = {}) => ({
+  enrollmentNumber: "",
+  section: "",
+  preferredCommittee: "NONE",
+  profileCompleted: applicationStatus !== "INCOMPLETE" && applicationStatus !== "NEEDS_CORRECTION",
+  applicationStatus,
+  feedback: "",
+  activeStep: applicationStatus === "INCOMPLETE" ? 1 : 5,
+  memberId: "",
+  createdAt: new Date(),
+  updatedAt: new Date(),
+  submittedAt: applicationStatus === "INCOMPLETE" ? null : new Date(),
+  ...overrides,
+});
+
 const announcement = (authorUid, committee, overrides = {}) => ({
   title: "Scoped notice",
   body: "A useful update for E-Cell members.",
@@ -117,6 +136,8 @@ const seed = async () => env.withSecurityRulesDisabled(async (context) => {
     setDoc(doc(db, "users/head-applicant"), profile("head-applicant", "NONE", "PENDING", false)),
     setDoc(doc(db, "users/coordinator"), profile("coordinator", "NONE", "COORDINATOR")),
     setDoc(doc(db, "users/unapproved"), profile("unapproved", "NONE", "PENDING", false)),
+    setDoc(doc(db, "memberApplications/head-applicant"), memberApplication("PENDING")),
+    setDoc(doc(db, "memberApplications/unapproved"), memberApplication("PENDING")),
     setDoc(doc(db, "userContacts/alice"), { email: "alice@example.invalid", phone: "555-0100", committee: "EVENTS" }),
     setDoc(doc(db, "userContacts/head-applicant"), { email: "head@example.invalid", phone: "", committee: "NONE" }),
     setDoc(doc(db, "userContacts/unapproved"), { email: "unapproved@example.invalid", phone: "", committee: "NONE" }),
@@ -222,6 +243,28 @@ try {
   await check("another member cannot read the migrated private contact", false, () =>
     getDoc(doc(alice, `userContacts/${migrationUid}`)));
 
+  const tinyJpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xd9]);
+  await check("member can upload a bounded JPEG to their own photo path", true, () =>
+    uploadBytes(ref(storageFor("alice"), "memberPhotos/alice/profile.jpg"), tinyJpeg, { contentType: "image/jpeg" }));
+  await check("approved members can read an approved member photo", true, () =>
+    getBytes(ref(storageFor("bob"), "memberPhotos/alice/profile.jpg")));
+  await check("member cannot overwrite another member's photo", false, () =>
+    uploadBytes(ref(storageFor("alice"), "memberPhotos/bob/profile.jpg"), tinyJpeg, { contentType: "image/jpeg" }));
+  await check("pending member can keep a photo private while awaiting review", true, () =>
+    uploadBytes(ref(storageFor("unapproved"), "memberPhotos/unapproved/profile.jpg"), tinyJpeg, { contentType: "image/jpeg" }));
+  await check("member cannot upload arbitrary files as profile photos", false, () =>
+    uploadBytes(ref(storageFor("unapproved"), "memberPhotos/unapproved/profile.jpg"), tinyJpeg, { contentType: "application/pdf" }));
+  await check("profile photo size is limited to 350 KB", false, () =>
+    uploadBytes(ref(storageFor("unapproved"), "memberPhotos/unapproved/profile.jpg"), new Uint8Array(350 * 1024 + 1), { contentType: "image/jpeg" }));
+  await check("pending member can read their own photo", true, () =>
+    getBytes(ref(storageFor("unapproved"), "memberPhotos/unapproved/profile.jpg")));
+  await check("approved member cannot read a pending member photo", false, () =>
+    getBytes(ref(storageFor("alice"), "memberPhotos/unapproved/profile.jpg")));
+  await check("coordinator can review a pending member photo", true, () =>
+    getBytes(ref(storageFor("coordinator"), "memberPhotos/unapproved/profile.jpg")));
+  await check("unapproved path patterns cannot expose unapproved users' photos", false, () =>
+    getBytes(ref(storageFor("bob"), "memberPhotos/unapproved/profile.jpg")));
+
   await check("approved directory query", true, () =>
     getDocs(query(collection(alice, "users"), where("isApproved", "==", true))));
   await check("approved member cannot get a pending profile", false, () =>
@@ -238,6 +281,20 @@ try {
     getDoc(doc(corporateHead, "userContacts/alice")));
   await check("member can update their own phone without losing committee", true, () =>
     updateDoc(doc(alice, "userContacts/alice"), { phone: "555-0101" }));
+  await check("member cannot update their phone with too few digits", false, () =>
+    updateDoc(doc(alice, "userContacts/alice"), { phone: "555-01" }));
+  await check("member cannot update their phone with more than fifteen digits", false, () =>
+    updateDoc(doc(alice, "userContacts/alice"), { phone: "1234567890123456" }));
+  await check("member cannot update their phone with unsupported characters", false, () =>
+    updateDoc(doc(alice, "userContacts/alice"), { phone: "555-01AB" }));
+  await check("member cannot update their contact email with invalid syntax", false, () =>
+    updateDoc(doc(alice, "userContacts/alice"), { email: "not-an-email" }));
+  await check("member can create contact data with valid optional phone formatting", true, () =>
+    setDoc(doc(carol, "userContacts/carol"), {
+      email: "carol+test@example.edu",
+      phone: " +91 (98765) 43210 ",
+      committee: "DESIGN",
+    }));
   await check("member can register bounded FCM tokens for their own devices", true, () =>
     setDoc(doc(alice, "userDevices/alice"), { fcmTokens: ["token-one", "token-two"] }));
   await check("member cannot read another member's FCM tokens", false, () =>
@@ -272,35 +329,120 @@ try {
   await check("coordinator can read migrated contact details", true, () =>
     getDoc(doc(coordinator, "userContacts/legacy")));
   await check("new account can register with pending defaults", true, async () => {
-    await setDoc(doc(pending, "users/pending"), profile("pending", "NONE", "PENDING", false));
+    const batch = writeBatch(pending);
+    batch.set(doc(pending, "users/pending"), profile("pending", "NONE", "PENDING", false));
+    batch.set(doc(pending, "memberApplications/pending"), {
+      ...memberApplication("INCOMPLETE", { createdAt: serverTimestamp(), updatedAt: serverTimestamp(), submittedAt: null }),
+    });
+    await batch.commit();
     await setDoc(doc(pending, "userContacts/pending"), {
       email: "pending@example.invalid",
       phone: "",
       committee: "NONE",
     });
   });
+  await check("member can read their private enrollment application", true, () =>
+    getDoc(doc(pending, "memberApplications/pending")));
+  await check("another member cannot read private enrollment information", false, () =>
+    getDoc(doc(alice, "memberApplications/pending")));
+  await check("member cannot inject enrollment data into the public profile", false, () =>
+    updateDoc(doc(pending, "users/pending"), { enrollmentNumber: "private-roll-42" }));
+  await check("member can submit a complete profile and move it to coordinator review", true, async () => {
+    const batch = writeBatch(pending);
+    batch.update(doc(pending, "users/pending"), { year: 2, branch: "Computer Engineering" });
+    batch.update(doc(pending, "userContacts/pending"), { phone: "555-0133" });
+    batch.update(doc(pending, "memberApplications/pending"), {
+      enrollmentNumber: "ROLL-42",
+      section: "A",
+      preferredCommittee: "DESIGN",
+      activeStep: 5,
+      updatedAt: serverTimestamp(),
+    });
+    await batch.commit();
+    await updateDoc(doc(pending, "memberApplications/pending"), {
+      profileCompleted: true,
+      applicationStatus: "PENDING",
+      feedback: "",
+      activeStep: 5,
+      submittedAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+  });
+  await check("coordinator can review enrollment details", true, () =>
+    getDoc(doc(coordinator, "memberApplications/pending")));
+  await check("committee head cannot read enrollment details", false, () =>
+    getDoc(doc(eventsHead, "memberApplications/pending")));
   await check("coordinator can read pending profiles", true, () =>
     getDoc(doc(coordinator, "users/pending")));
   await check("coordinator can approve and assign a committee atomically", true, async () => {
     const batch = writeBatch(coordinator);
+    const memberId = "EC-AAAAAAAAAAAAAAAA";
     batch.update(doc(coordinator, "users/pending"), {
       isApproved: true,
       committee: "EVENTS",
       role: "MEMBER",
     });
     batch.set(doc(coordinator, "userContacts/pending"), { committee: "EVENTS" }, { merge: true });
+    batch.update(doc(coordinator, "memberApplications/pending"), {
+      applicationStatus: "APPROVED",
+      profileCompleted: true,
+      feedback: "",
+      memberId,
+      updatedAt: serverTimestamp(),
+    });
+    batch.set(doc(coordinator, `memberIdIndex/${memberId}`), { uid: "pending", createdAt: serverTimestamp() });
+    batch.set(doc(collection(coordinator, "memberApplicationAudit/pending/events")), {
+      uid: "pending", actorUid: "coordinator", action: "APPROVED", message: "", committee: "EVENTS",
+      role: "MEMBER", memberId, at: serverTimestamp(),
+    });
     await batch.commit();
   });
   await check("coordinator can approve an applicant as committee head", true, async () => {
     const batch = writeBatch(coordinator);
+    const memberId = "EC-BBBBBBBBBBBBBBBB";
     batch.update(doc(coordinator, "users/head-applicant"), {
       isApproved: true,
       committee: "DESIGN",
       role: "COMMITTEE_HEAD",
     });
     batch.set(doc(coordinator, "userContacts/head-applicant"), { committee: "DESIGN" }, { merge: true });
+    batch.update(doc(coordinator, "memberApplications/head-applicant"), {
+      applicationStatus: "APPROVED",
+      profileCompleted: true,
+      feedback: "",
+      memberId,
+      updatedAt: serverTimestamp(),
+    });
+    batch.set(doc(coordinator, `memberIdIndex/${memberId}`), { uid: "head-applicant", createdAt: serverTimestamp() });
+    batch.set(doc(collection(coordinator, "memberApplicationAudit/head-applicant/events")), {
+      uid: "head-applicant", actorUid: "coordinator", action: "APPROVED", message: "", committee: "DESIGN",
+      role: "COMMITTEE_HEAD", memberId, at: serverTimestamp(),
+    });
     await batch.commit();
   });
+  const legacyMemberId = "EC-CCCCCCCCCCCCCCCC";
+  await check("approved legacy member can issue a unique ID only to their own account", true, async () => {
+    const batch = writeBatch(alice);
+    batch.set(doc(alice, "memberApplications/alice"), memberApplication("APPROVED", {
+      profileCompleted: true,
+      memberId: legacyMemberId,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      submittedAt: null,
+    }));
+    batch.set(doc(alice, `memberIdIndex/${legacyMemberId}`), {
+      uid: "alice", createdAt: serverTimestamp(),
+    });
+    await batch.commit();
+  });
+  await check("member can read their own private member ID", true, () =>
+    getDoc(doc(alice, "memberApplications/alice")));
+  await check("coordinator can verify a member ID", true, () =>
+    getDoc(doc(coordinator, `memberIdIndex/${legacyMemberId}`)));
+  await check("another approved member cannot inspect a different member ID index", false, () =>
+    getDoc(doc(bob, `memberIdIndex/${legacyMemberId}`)));
+  await check("member ID index cannot be enumerated", false, () =>
+    getDocs(collection(alice, "memberIdIndex")));
   await check("coordinator cannot promote a member to coordinator in-app", false, () =>
     updateDoc(doc(coordinator, "users/alice"), {
       isApproved: true,
@@ -319,6 +461,8 @@ try {
     updateDoc(doc(alice, "users/alice"), { role: "COORDINATOR" }));
   await check("member can update their own profile fields", true, () =>
     updateDoc(doc(alice, "users/alice"), { bio: "A short member bio" }));
+  await check("approved member cannot change academic year without coordinator review", false, () =>
+    updateDoc(doc(alice, "users/alice"), { year: 4 }));
   await check("committee head cannot reassign another member", false, () =>
     updateDoc(doc(eventsHead, "users/bob"), { committee: "EVENTS", role: "MEMBER" }));
 
@@ -677,12 +821,27 @@ try {
     deleteDoc(doc(coordinator, "users/bob")));
   await check("coordinator cannot delete their own profile", false, () =>
     deleteDoc(doc(coordinator, "users/coordinator")));
-  await check("coordinator can reject by deleting pending Firestore records", true, async () => {
-    await deleteDoc(doc(coordinator, "users/unapproved"));
-    await deleteDoc(doc(coordinator, "userContacts/unapproved"));
+  await check("coordinator cannot erase a pending profile during rejection", false, () =>
+    deleteDoc(doc(coordinator, "users/unapproved")));
+  await check("coordinator can reject while retaining the application and feedback", true, async () => {
+    await updateDoc(doc(coordinator, "memberApplications/unapproved"), {
+      applicationStatus: "REJECTED",
+      profileCompleted: true,
+      feedback: "Please correct your department.",
+      updatedAt: serverTimestamp(),
+    });
+    const rejected = await getDoc(doc(dbFor("unapproved"), "memberApplications/unapproved"));
+    if (rejected.data()?.feedback !== "Please correct your department.") throw new Error("rejection feedback missing");
   });
-  await check("deleted account can reapply as a fresh pending profile", true, () =>
-    setDoc(doc(dbFor("unapproved"), "users/unapproved"), profile("unapproved", "NONE", "PENDING", false)));
+  await check("rejected member can reapply without recreating the account", true, () =>
+    updateDoc(doc(dbFor("unapproved"), "memberApplications/unapproved"), {
+      applicationStatus: "INCOMPLETE",
+      profileCompleted: false,
+      feedback: "",
+      activeStep: 1,
+      submittedAt: null,
+      updatedAt: serverTimestamp(),
+    }));
 } finally {
   await env.cleanup();
   console.log(`FIRESTORE RULES: ${checks - failures}/${checks} passed; ${failures} failed`);
